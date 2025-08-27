@@ -1,0 +1,9 @@
+{
+  "name": "telegram-webhook-api",
+  "version": "1.0.0",
+  "description": "Telegram webhook for restaurant orders",
+  "main": "telegram-webhook.js",
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}
