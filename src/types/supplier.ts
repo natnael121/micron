@@ -256,4 +256,62 @@ export interface ProductCategory {
   order: number;
   isActive: boolean;
   created_at: string;
+  updated_at: string;
+}
+
+// Supplier Authentication Types
+export interface SupplierUser {
+  id: string;
+  email: string;
+  name: string;
+  supplierId: string;
+  role: 'supplier_admin' | 'supplier_staff';
+  isActive: boolean;
+  created_at: string;
+  lastLogin?: string;
+}
+
+// Supplier Dashboard Types
+export interface SupplierDashboardStats {
+  activeOrders: number;
+  monthlyRevenue: number;
+  restaurantCustomers: number;
+  averageDeliveryTime: number;
+  totalOrders: number;
+  pendingOrders: number;
+  completedOrders: number;
+  cancelledOrders: number;
+}
+
+export interface RestaurantCustomer {
+  id: string;
+  name: string;
+  contactEmail: string;
+  contactPhone: string;
+  address: {
+    line1: string;
+    line2?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+    latitude?: number;
+    longitude?: number;
+  };
+  totalOrders: number;
+  totalSpent: number;
+  lastOrderDate?: string;
+  averageOrderValue: number;
+  status: 'active' | 'inactive';
+}
+
+export interface SupplierOrderLocation {
+  orderId: string;
+  restaurantName: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  orderTotal: number;
+  status: PurchaseOrder['status'];
+  orderDate: string;
 }
