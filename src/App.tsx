@@ -14,8 +14,10 @@ import { Settings } from './components/admin/Settings';
 import { WaiterManagement } from './components/admin/WaiterManagement';
 import { POSIntegration } from './components/admin/POSIntegration';
 import { DeliveryIntegration } from './components/admin/DeliveryIntegration';
+import { SupplierManagement } from './components/admin/SupplierManagement';
 import { SuperAdminLogin } from './components/admin/SuperAdminLogin';
 import { SuperAdminDashboard } from './components/admin/SuperAdminDashboard';
+import { SuperAdminSuppliers } from './components/admin/SuperAdminSuppliers';
 import { MenuPage } from './pages/MenuPage';
 
 function App() {
@@ -51,6 +53,11 @@ function App() {
             <SuperAdminDashboard /> : 
             <Navigate to="/super-admin/login" replace />
         } />
+        <Route path="/super-admin/suppliers" element={
+          user && user.email === 'natnaeltsegaye70@gmail.com' ? 
+            <SuperAdminSuppliers /> : 
+            <Navigate to="/super-admin/login" replace />
+        } />
         
         {/* Protected Admin Routes */}
         <Route path="/admin" element={user ? <AdminLayout /> : <Navigate to="/login" replace />}>
@@ -62,6 +69,7 @@ function App() {
           <Route path="bills" element={<BillManagement />} />
           <Route path="pos" element={<POSIntegration />} />
           <Route path="delivery" element={<DeliveryIntegration />} />
+          <Route path="suppliers" element={<SupplierManagement />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
         </Route>

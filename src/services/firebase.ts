@@ -11,7 +11,8 @@ import {
   orderBy, 
   limit,
   Timestamp,
-  onSnapshot
+  onSnapshot,
+  setDoc
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
@@ -21,6 +22,13 @@ import {
   MenuSchedule, ScheduledMenuItem, Department, WaiterAssignment, DayReport
 } from '../types';
 import { DeliveryIntegration, DeliveryOrder, DeliveryWebhookEvent } from '../types/delivery';
+import { 
+  Supplier, 
+  SupplierProduct, 
+  PurchaseOrder, 
+  SupplierInvoice,
+  ProductCategory 
+} from '../types/supplier';
 
 class FirebaseService {
   // =======================
@@ -403,7 +411,7 @@ class FirebaseService {
       throw error;
     }
   }
-n
+
   async deleteDepartment(id: string): Promise<void> {
     try {
       await deleteDoc(doc(db, 'departments', id));
@@ -1522,6 +1530,163 @@ async getPendingOrderById(orderId: string): Promise<PendingOrder | null> {
       await updateDoc(doc(db, 'deliveryWebhookEvents', eventId), updates);
     } catch (error) {
       console.error('Error updating webhook event:', error);
+      throw error;
+    }
+  }
+
+  // =======================
+  // Supplier Management
+  // =======================
+  
+  async getSuppliers(restaurantId?: string): Promise<Supplier[]> {
+    try {
+      const suppliers: Supplier[] = [];
+      
+      // Get global suppliers
+      const globalQuery = query(
+        collection(db, 'suppliers'),
+        where('type', '==', 'global'),
+        where('isActive', '==', true),
+        orderBy('name')
+      );
+      const globalSnapshot = await getDocs(globalQuery);
+      globalSnapshot.docs.forEach(doc => {
+        suppliers.push({ id: doc.id, ...doc.data() } as Supplier);
+      });
+      
+      // Get restaurant-specific suppliers if restaurantId provided
+      if (restaurantId) {
+        const restaurantQuery = query(
+          collection(db, 'suppliers'),
+          where('type', '==', 'restaurant_specific'),
+          where('restaurantId', '==', restaurantId),
+          where('isActive', '==', true),
+          orderBy('name')
+        );
+        const restaurantSnapshot = await getDocs(restaurantQuery);
+        restaurantSnapshot.docs.forEach(doc => {
+          suppliers.push({ id: doc.id, ...doc.data() } as Supplier);
+        });
+      }
+      
+      return suppliers;
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+      throw error;
+    }
+  }
+
+  async getAllSuppliers(): Promise<Supplier[]> {
+    try {
+      const snapshot = await getDocs(
+        query(collection(db, 'suppliers'), orderBy('created_at', 'desc'))
+      );
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Supplier));
+    } catch (error) {
+      console.error('Error fetching all suppliers:', error);
+      throw error;
+    }
+  }
+
+  async addSupplier(supplier: Omit<Supplier, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, 'suppliers'), {
+        ...supplier,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding supplier:', error);
+      throw error;
+    }
+  }
+
+  async updateSupplier(id: string, updates: Partial<Supplier>): Promise<void> {
+    try {
+      const docRef = doc(db, 'suppliers', id);
+      await updateDoc(docRef, {
+        ...updates,
+        updated_at: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('Error updating supplier:', error);
+      throw error;
+    }
+  }
+
+  async deleteSupplier(id: string): Promise<void> {
+    try {
+      await deleteDoc(doc(db, 'suppliers', id));
+    } catch (error) {
+      console.error('Error deleting supplier:', error);
+      throw error;
+    }
+  }
+
+  // =======================
+  // Purchase Order Management
+  // =======================
+  
+  async getPurchaseOrders(restaurantId: string): Promise<PurchaseOrder[]> {
+    try {
+      const q = query(
+        collection(db, 'purchaseOrders'),
+        where('restaurantId', '==', restaurantId),
+        orderBy('created_at', 'desc')
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
+    } catch (error) {
+      console.error('Error fetching purchase orders:', error);
+      throw error;
+    }
+  }
+
+  async getAllPurchaseOrders(): Promise<PurchaseOrder[]> {
+    try {
+      const q = query(
+        collection(db, 'purchaseOrders'),
+        orderBy('created_at', 'desc'),
+        limit(1000)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
+    } catch (error) {
+      console.error('Error fetching all purchase orders:', error);
+      throw error;
+    }
+  }
+
+  async addPurchaseOrder(order: Omit<PurchaseOrder, 'id' | 'orderNumber'>): Promise<string> {
+    try {
+      // Generate order number
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0];
+      const orderNumber = `PO-${dateStr}-${Date.now().toString().slice(-6)}`;
+      
+      const docRef = await addDoc(collection(db, 'purchaseOrders'), {
+        ...order,
+        orderNumber,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding purchase order:', error);
+      throw error;
+    }
+  }
+
+  async updatePurchaseOrder(id: string, updates: Partial<PurchaseOrder>): Promise<void> {
+    try {
+      const docRef = doc(db, 'purchaseOrders', id);
+      await updateDoc(docRef, {
+        ...updates,
+        updated_at: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('Error updating purchase order:', error);
       throw error;
     }
   }

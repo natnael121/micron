@@ -6,6 +6,7 @@ import { Supplier } from '../../types/supplier';
 interface SupplierModalProps {
   supplier: Supplier | null;
   restaurantId: string;
+  isGlobal?: boolean;
   onClose: () => void;
   onSave: (supplier: Supplier) => void;
 }
@@ -13,6 +14,7 @@ interface SupplierModalProps {
 export const SupplierModal: React.FC<SupplierModalProps> = ({
   supplier,
   restaurantId,
+  isGlobal = false,
   onClose,
   onSave,
 }) => {
@@ -88,8 +90,9 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
     try {
       const supplierData: Omit<Supplier, 'id'> = {
         ...formData,
-        type: 'restaurant_specific',
-        restaurantId,
+        type: isGlobal ? 'global' : 'restaurant_specific',
+        restaurantId: isGlobal ? undefined : restaurantId,
+        createdBy: isGlobal ? 'super_admin' : undefined,
         created_at: supplier?.created_at || new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };

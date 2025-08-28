@@ -15,8 +15,11 @@ import {
   UserCheck,
   UserX,
   Shield,
-  ShieldOff
+  ShieldOff,
+  Package,
+  ExternalLink
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { useAuth } from '../../hooks/useAuth';
 import { firebaseService } from '../../services/firebase';
@@ -157,9 +160,18 @@ export const SuperAdminDashboard: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Super Admin Dashboard</h1>
           <p className="text-gray-600">Platform-wide management and analytics</p>
         </div>
-        <div className="flex items-center space-x-2 bg-red-50 px-3 py-2 rounded-lg">
-          <Shield className="w-4 h-4 text-red-600" />
-          <span className="text-sm font-medium text-red-600">Super Admin</span>
+        <div className="flex items-center space-x-3">
+          <Link
+            to="/super-admin/suppliers"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+          >
+            <Package className="w-4 h-4" />
+            <span>Manage Suppliers</span>
+          </Link>
+          <div className="flex items-center space-x-2 bg-red-50 px-3 py-2 rounded-lg">
+            <Shield className="w-4 h-4 text-red-600" />
+            <span className="text-sm font-medium text-red-600">Super Admin</span>
+          </div>
         </div>
       </div>
 
