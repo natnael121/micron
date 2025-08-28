@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Save, Upload, User, Building, MessageSquare, Globe, 
-  Palette, QrCode, Download, Table, Printer 
+  Palette, QrCode, Download, Table, Printer, Truck, X 
 } from 'lucide-react';
 import { NotificationSettings } from './NotificationSettings';
 import { useAuth } from '../../hooks/useAuth';
@@ -11,6 +11,7 @@ import { telegramService } from '../../services/telegram';
 import { User as UserType, MenuItem, Category } from '../../types';
 import { QRCodeGenerator } from '../QRCodeGenerator';
 import { TableTentPDFGenerator } from '../TableTentPDFGenerator';
+import { DeliverySettings } from './DeliverySettings';
 
 export const Settings: React.FC = () => {
   const { user, firebaseUser } = useAuth();
@@ -21,6 +22,7 @@ export const Settings: React.FC = () => {
   const [settingUpWebhook, setSettingUpWebhook] = useState(false);
   const [showQRGenerator, setShowQRGenerator] = useState(false);
   const [showPrintMenu, setShowPrintMenu] = useState(false);
+  const [showDeliverySettings, setShowDeliverySettings] = useState(false);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   
@@ -492,6 +494,43 @@ export const Settings: React.FC = () => {
                 <p className="text-sm text-yellow-700">
                   Create departments for Kitchen, Bar, Cashier, and Admin to set up proper notification routing.
                 </p>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        {/* Delivery Integration Settings */}
+        <details className="bg-white rounded-lg shadow-sm border">
+          <summary className="p-6 cursor-pointer hover:bg-gray-50 transition-colors">
+            <div className="flex items-center space-x-3">
+              <Truck className="w-5 h-5 text-gray-500" />
+              <h2 className="text-lg font-semibold text-gray-900">Delivery Integration</h2>
+            </div>
+          </summary>
+          <div className="px-6 pb-6">
+            <div className="space-y-4">
+              <p className="text-gray-600">
+                Configure your restaurant for delivery platforms like Uber Eats, DoorDash, and Grubhub.
+              </p>
+              
+              <button
+                type="button"
+                onClick={() => setShowDeliverySettings(true)}
+                className="w-full bg-orange-600 text-white py-3 px-4 rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center space-x-2 font-medium"
+              >
+                <Truck className="w-4 h-4" />
+                <span>Configure Delivery Settings</span>
+              </button>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-blue-900 mb-2">Delivery Integration Features</h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Connect with major delivery platforms</li>
+                  <li>• Automatic menu synchronization</li>
+                  <li>• Real-time order notifications</li>
+                  <li>• Centralized order management</li>
+                  <li>• Revenue tracking and analytics</li>
+                </ul>
               </div>
             </div>
           </div>
@@ -988,6 +1027,26 @@ export const Settings: React.FC = () => {
           categories={categories}
           onClose={() => setShowPrintMenu(false)}
         />
+      )}
+      
+      {/* Delivery Settings Modal */}
+      {showDeliverySettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">Delivery Settings</h2>
+                <button 
+                  onClick={() => setShowDeliverySettings(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            <DeliverySettings />
+          </div>
+        </div>
       )}
     </div>
   );
