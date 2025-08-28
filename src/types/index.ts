@@ -367,3 +367,4 @@ export interface PlatformStats {
   totalOrders: number;
   totalRevenue: number;
   monthlyGrowth: Array<{ month: string; restaurants: number; revenue: number }>;
+}
