@@ -185,6 +185,15 @@ export interface Order {
     telegramPhoto?: string;
   };
   notes?: string;
+  deliveryInfo?: {
+    company: string;
+    orderId: string;
+    address: any;
+    estimatedDeliveryTime?: string;
+    driverName?: string;
+    driverPhone?: string;
+    estimatedPickupTime?: string;
+  };
 }
 
 export interface PendingOrder {

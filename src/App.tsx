@@ -13,6 +13,7 @@ import { Analytics } from './components/admin/Analytics';
 import { Settings } from './components/admin/Settings';
 import { WaiterManagement } from './components/admin/WaiterManagement';
 import { POSIntegration } from './components/admin/POSIntegration';
+import { DeliveryIntegration } from './components/admin/DeliveryIntegration';
 import { SuperAdminLogin } from './components/admin/SuperAdminLogin';
 import { SuperAdminDashboard } from './components/admin/SuperAdminDashboard';
 import { MenuPage } from './pages/MenuPage';
@@ -60,6 +61,7 @@ function App() {
           <Route path="orders" element={<OrderManagement />} />
           <Route path="bills" element={<BillManagement />} />
           <Route path="pos" element={<POSIntegration />} />
+          <Route path="delivery" element={<DeliveryIntegration />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
         </Route>

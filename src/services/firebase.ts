@@ -18,8 +18,9 @@ import { db, storage } from '../config/firebase';
 import { 
   MenuItem, Category, Order, Bill, User, MenuStats, 
   PendingOrder, TableBill, RestaurantSettings, PaymentConfirmation, OrderItem,
-  MenuSchedule, ScheduledMenuItem
+  MenuSchedule, ScheduledMenuItem, Department, WaiterAssignment, DayReport
 } from '../types';
+import { DeliveryIntegration, DeliveryOrder, DeliveryWebhookEvent } from '../types/delivery';
 
 class FirebaseService {
   // =======================
@@ -1390,6 +1391,137 @@ async getPendingOrderById(orderId: string): Promise<PendingOrder | null> {
       await sendPasswordResetEmail(auth, email);
     } catch (error) {
       console.error('Error sending password reset email:', error);
+      throw error;
+    }
+  }
+
+  // =======================
+  // Delivery Integration Methods
+  // =======================
+  
+  async getDeliveryIntegrations(userId: string): Promise<DeliveryIntegration[]> {
+    try {
+      const q = query(
+        collection(db, 'deliveryIntegrations'),
+        where('userId', '==', userId)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryIntegration));
+    } catch (error) {
+      console.error('Error fetching delivery integrations:', error);
+      return [];
+    }
+  }
+
+  async addDeliveryIntegration(integration: Omit<DeliveryIntegration, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, 'deliveryIntegrations'), integration);
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding delivery integration:', error);
+      throw error;
+    }
+  }
+
+  async updateDeliveryIntegration(id: string, updates: Partial<DeliveryIntegration>): Promise<void> {
+    try {
+      await updateDoc(doc(db, 'deliveryIntegrations', id), updates);
+    } catch (error) {
+      console.error('Error updating delivery integration:', error);
+      throw error;
+    }
+  }
+
+  async getDeliveryOrders(userId: string, limitCount?: number): Promise<DeliveryOrder[]> {
+    try {
+      let q = query(
+        collection(db, 'orders'),
+        where('userId', '==', userId),
+        where('tableNumber', '==', 'DELIVERY')
+      );
+      
+      const snapshot = await getDocs(q);
+      const orders = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          deliveryCompanyOrderId: data.deliveryInfo?.orderId || doc.id,
+          deliveryCompany: data.deliveryInfo?.company || 'Unknown',
+          restaurantId: data.userId,
+          customer: {
+            name: data.customerInfo?.name || 'Unknown',
+            phone: data.customerInfo?.phone || '',
+            email: data.customerInfo?.email,
+            deliveryAddress: data.deliveryInfo?.address || {
+              line1: 'Unknown Address',
+              city: '',
+              state: '',
+              postalCode: ''
+            }
+          },
+          items: data.items,
+          subtotal: data.totalAmount,
+          deliveryFee: 2.99,
+          serviceFee: 1.99,
+          tax: data.totalAmount * 0.15,
+          total: data.totalAmount * 1.15 + 4.98,
+          status: data.status === 'confirmed' ? 'accepted' : data.status,
+          estimatedPrepTime: data.estimatedPrepTime || 20,
+          paymentMethod: data.paymentMethod || 'card',
+          paymentStatus: data.paymentStatus,
+          orderTime: data.timestamp,
+          acceptedAt: data.confirmedAt,
+          readyAt: data.readyAt,
+          specialInstructions: data.notes,
+          source: data.deliveryInfo?.company || 'Delivery Platform'
+        } as DeliveryOrder;
+      });
+      
+      const sortedOrders = orders.sort((a, b) => 
+        new Date(b.orderTime).getTime() - new Date(a.orderTime).getTime()
+      );
+      
+      return limitCount ? sortedOrders.slice(0, limitCount) : sortedOrders;
+    } catch (error) {
+      console.error('Error fetching delivery orders:', error);
+      return [];
+    }
+  }
+
+  async getOrder(orderId: string): Promise<Order | null> {
+    try {
+      const docRef = doc(db, 'orders', orderId);
+      const docSnap = await getDoc(docRef);
+      return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Order : null;
+    } catch (error) {
+      console.error('Error fetching order:', error);
+      return null;
+    }
+  }
+
+  async getOrderByDeliveryId(deliveryOrderId: string): Promise<Order | null> {
+    try {
+      const q = query(
+        collection(db, 'orders'),
+        where('deliveryInfo.orderId', '==', deliveryOrderId)
+      );
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) return null;
+      
+      const orderDoc = snapshot.docs[0];
+      return { id: orderDoc.id, ...orderDoc.data() } as Order;
+    } catch (error) {
+      console.error('Error fetching order by delivery ID:', error);
+      return null;
+    }
+  }
+
+  async updateWebhookEvent(eventId: string, updates: Partial<DeliveryWebhookEvent>): Promise<void> {
+    try {
+      await updateDoc(doc(db, 'deliveryWebhookEvents', eventId), updates);
+    } catch (error) {
+      console.error('Error updating webhook event:', error);
       throw error;
     }
   }
