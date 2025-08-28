@@ -21,7 +21,7 @@ import { deliveryIntegrationService } from '../../services/deliveryIntegration';
 import { firebaseService } from '../../services/firebase';
 import { 
   DeliveryCompany, 
-  DeliveryIntegration, 
+  DeliveryIntegration as DeliveryIntegrationType, 
   DeliveryOrder, 
   DeliveryAnalytics 
 } from '../../types/delivery';
@@ -30,7 +30,7 @@ import { format } from 'date-fns';
 export const DeliveryIntegration: React.FC = () => {
   const { user } = useAuth();
   const [deliveryCompanies, setDeliveryCompanies] = useState<DeliveryCompany[]>([]);
-  const [userIntegrations, setUserIntegrations] = useState<DeliveryIntegration[]>([]);
+  const [userIntegrations, setUserIntegrations] = useState<DeliveryIntegrationType[]>([]);
   const [deliveryOrders, setDeliveryOrders] = useState<DeliveryOrder[]>([]);
   const [analytics, setAnalytics] = useState<DeliveryAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
