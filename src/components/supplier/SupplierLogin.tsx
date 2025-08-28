@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Package, Building2 } from 'lucide-react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import { SupplierUser } from '../../types/supplier';
 
@@ -44,7 +44,7 @@ export const SupplierLogin: React.FC = () => {
       }
 
       // Update last login
-      await doc(db, 'supplierUsers', user.uid).update({
+      await updateDoc(doc(db, 'supplierUsers', user.uid), {
         lastLogin: new Date().toISOString()
       });
 

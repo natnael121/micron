@@ -348,7 +348,6 @@ export const MenuPage: React.FC = () => {
   };
 
   const handlePaymentOrder = () => {
-    if (cartItems.length === 0) return;
     setShowCart(false);
     setShowPayment(true);
   };

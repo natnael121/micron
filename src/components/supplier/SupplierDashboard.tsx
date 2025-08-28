@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   TrendingUp, 
   DollarSign, 
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { supplierService } from '../../services/supplierService';
+import { firebaseService } from '../../services/firebase';
 import { SupplierDashboardStats, RestaurantCustomer, PurchaseOrder } from '../../types/supplier';
 import { format, subDays } from 'date-fns';
 
@@ -33,13 +35,16 @@ export const SupplierDashboard: React.FC = () => {
   }, [dateRange]);
 
   const loadDashboardData = async () => {
-    if (!supplierUser.supplierId) return;
+    if (!supplierUser.supplierId) {
+      console.warn('No supplier ID found in session');
+      return;
+    }
     
     try {
       setLoading(true);
       const [orders, customers] = await Promise.all([
-        supplierService.getSupplierOrders(supplierUser.supplierId),
-        supplierService.getSupplierCustomers(supplierUser.supplierId)
+        firebaseService.getSupplierOrders(supplierUser.supplierId),
+        firebaseService.getSupplierCustomers(supplierUser.supplierId)
       ]);
       
       // Calculate stats

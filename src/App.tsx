@@ -18,6 +18,9 @@ import { SupplierManagement } from './components/admin/SupplierManagement';
 import { SuperAdminLogin } from './components/admin/SuperAdminLogin';
 import { SuperAdminDashboard } from './components/admin/SuperAdminDashboard';
 import { SuperAdminSuppliers } from './components/admin/SuperAdminSuppliers';
+import { SupplierLayout } from './components/supplier/SupplierLayout';
+import { SupplierLogin } from './components/supplier/SupplierLogin';
+import { SupplierDashboard } from './components/supplier/SupplierDashboard';
 import { MenuPage } from './pages/MenuPage';
 
 function App() {
@@ -45,6 +48,12 @@ function App() {
         <Route path="/menu/:userId/table/:tableNumber" element={<MenuPage />} />
         <Route path="/:businessSlug/table/:tableNumber" element={<MenuPage />} />
         <Route path="/menu" element={<MenuPage />} />
+        
+        {/* Supplier Routes */}
+        <Route path="/supplier/login" element={<SupplierLogin />} />
+        <Route path="/supplier" element={<SupplierLayout />}>
+          <Route index element={<SupplierDashboard />} />
+        </Route>
         
         {/* Super Admin Routes */}
         <Route path="/super-admin/login" element={<SuperAdminLogin />} />

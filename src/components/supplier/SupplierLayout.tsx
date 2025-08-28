@@ -31,6 +31,9 @@ export const SupplierLayout: React.FC = () => {
       navigate('/supplier/login');
     } catch (error) {
       console.error('Error signing out:', error);
+      // Force logout even if Firebase signOut fails
+      localStorage.removeItem('supplierUser');
+      navigate('/supplier/login');
     }
   };
 
