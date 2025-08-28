@@ -12,7 +12,8 @@ import {
   Building2,
   X,
   Bell,
-  Monitor
+  Monitor,
+  Truck
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
