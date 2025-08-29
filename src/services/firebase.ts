@@ -222,12 +222,18 @@ class FirebaseService {
     try {
       const q = query(
         collection(db, 'menuItems'),
-        where('userId', '==', userId),
-        orderBy('category'),
-        orderBy('name')
+        where('userId', '==', userId)
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem));
+      const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem));
+      
+      // Sort in memory to avoid composite index requirement
+      return items.sort((a, b) => {
+        if (a.category !== b.category) {
+          return a.category.localeCompare(b.category);
+        }
+        return a.name.localeCompare(b.name);
+      });
     } catch (error) {
       console.error('Error fetching menu items:', error);
       throw error;
@@ -620,11 +626,13 @@ class FirebaseService {
     try {
       const q = query(
         collection(db, 'pendingOrders'),
-        where('userId', '==', userId),
-        orderBy('timestamp', 'desc')
+        where('userId', '==', userId)
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder));
+      const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder));
+      
+      // Sort in memory to avoid composite index requirement
+      return orders.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     } catch (error) {
       console.error('Error fetching pending orders:', error);
       throw error;
@@ -805,11 +813,13 @@ class FirebaseService {
       const q = query(
         collection(db, 'paymentConfirmations'),
         where('userId', '==', userId),
-        where('status', '==', 'pending'),
-        orderBy('timestamp', 'desc')
+        where('status', '==', 'pending')
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PaymentConfirmation));
+      const confirmations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PaymentConfirmation));
+      
+      // Sort in memory to avoid composite index requirement
+      return confirmations.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     } catch (error) {
       console.error('Error fetching payment confirmations:', error);
       throw error;
