@@ -1249,6 +1249,23 @@ class FirebaseService {
   // Supplier Management
   // =======================
   
+  async addSupplier(supplier: Omit<Supplier, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, 'suppliers'), {
+        ...supplier,
+        totalOrders: 0,
+        totalRevenue: 0,
+        averageOrderValue: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding supplier:', error);
+      throw error;
+    }
+  }
+
   async getSuppliers(restaurantId: string): Promise<Supplier[]> {
     try {
       const suppliers: Supplier[] = [];

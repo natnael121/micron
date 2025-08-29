@@ -94,15 +94,7 @@ class SupplierService {
 
   async addSupplier(supplier: Omit<Supplier, 'id'>): Promise<string> {
     try {
-      const docRef = await addDoc(collection(db, 'suppliers'), {
-        ...supplier,
-        totalOrders: 0,
-        totalRevenue: 0,
-        averageOrderValue: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-      return docRef.id;
+      return await firebaseService.addSupplier(supplier);
     } catch (error) {
       console.error('Error adding supplier:', error);
       throw error;
@@ -169,8 +161,6 @@ class SupplierService {
         },
         type: 'restaurant_specific',
         isActive: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
         paymentTerms: {
           method: 'bank_transfer',
           daysNet: 30,
@@ -188,26 +178,7 @@ class SupplierService {
 
       const supplierId = await this.addSupplier(supplier);
 
-      // Create supplier user account
-      const supplierUser: Omit<SupplierUser, 'id'> = {
-        email: supplierData.email,
-        name: supplierData.name,
-        supplierId,
-        role: 'supplier_admin',
-        isActive: true,
-        created_at: new Date().toISOString(),
-      };
-
-      // Note: In a real implementation, you would create the Firebase Auth user here
-      // For now, we'll create a placeholder user ID
-      const userId = `supplier_${Date.now()}`;
-      
-      const userDocRef = await addDoc(collection(db, 'supplierUsers'), {
-        ...supplierUser,
-        id: userId
-      });
-
-      return { supplierId, userId };
+      return { supplierId, userId: supplierId };
     } catch (error) {
       console.error('Error creating supplier account:', error);
       throw error;
