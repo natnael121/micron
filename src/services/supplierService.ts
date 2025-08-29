@@ -132,6 +132,88 @@ class SupplierService {
   }
 
   // =======================
+  // Supplier Authentication
+  // =======================
+  
+  async createSupplierAccount(supplierData: {
+    email: string;
+    password: string;
+    name: string;
+    businessName: string;
+    phone: string;
+    address: {
+      line1: string;
+      line2?: string;
+      city: string;
+      state: string;
+      postalCode: string;
+      country: string;
+    };
+    contactPerson: {
+      name: string;
+      email: string;
+      phone: string;
+      position?: string;
+    };
+  }): Promise<{ supplierId: string; userId: string }> {
+    try {
+      // Create supplier record first
+      const supplier: Omit<Supplier, 'id'> = {
+        name: supplierData.businessName,
+        email: supplierData.email,
+        phone: supplierData.phone,
+        address: supplierData.address,
+        contactPerson: supplierData.contactPerson,
+        businessInfo: {
+          description: `${supplierData.businessName} - Professional supplier services`
+        },
+        type: 'restaurant_specific',
+        isActive: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        paymentTerms: {
+          method: 'bank_transfer',
+          daysNet: 30,
+          discountPercent: 0,
+          discountDays: 0,
+        },
+        deliveryInfo: {
+          minimumOrder: 0,
+          deliveryFee: 0,
+          freeDeliveryThreshold: 100,
+          estimatedDeliveryDays: 3,
+          deliveryAreas: [supplierData.address.city],
+        }
+      };
+
+      const supplierId = await this.addSupplier(supplier);
+
+      // Create supplier user account
+      const supplierUser: Omit<SupplierUser, 'id'> = {
+        email: supplierData.email,
+        name: supplierData.name,
+        supplierId,
+        role: 'supplier_admin',
+        isActive: true,
+        created_at: new Date().toISOString(),
+      };
+
+      // Note: In a real implementation, you would create the Firebase Auth user here
+      // For now, we'll create a placeholder user ID
+      const userId = `supplier_${Date.now()}`;
+      
+      const userDocRef = await addDoc(collection(db, 'supplierUsers'), {
+        ...supplierUser,
+        id: userId
+      });
+
+      return { supplierId, userId };
+    } catch (error) {
+      console.error('Error creating supplier account:', error);
+      throw error;
+    }
+  }
+  // =======================
   // Product Management
   // =======================
   
