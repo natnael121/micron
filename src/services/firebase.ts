@@ -1249,6 +1249,20 @@ class FirebaseService {
   // Supplier Management
   // =======================
   
+  async addSupplier(supplier: Omit<Supplier, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, 'suppliers'), {
+        ...supplier,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding supplier:', error);
+      throw error;
+    }
+  }
+
   async getSuppliers(restaurantId: string): Promise<Supplier[]> {
     try {
       const suppliers: Supplier[] = [];
@@ -1293,20 +1307,6 @@ class FirebaseService {
       return suppliers.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     } catch (error) {
       console.error('Error fetching all suppliers:', error);
-      throw error;
-    }
-  }
-
-  async addSupplier(supplier: Omit<Supplier, 'id'>): Promise<string> {
-    try {
-      const docRef = await addDoc(collection(db, 'suppliers'), {
-        ...supplier,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-      return docRef.id;
-    } catch (error) {
-      console.error('Error adding supplier:', error);
       throw error;
     }
   }
