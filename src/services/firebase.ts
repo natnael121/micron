@@ -1257,8 +1257,7 @@ class FirebaseService {
       const globalQuery = query(
         collection(db, 'suppliers'),
         where('type', '==', 'global'),
-        where('isActive', '==', true),
-        orderBy('name')
+        where('isActive', '==', true)
       );
       const globalSnapshot = await getDocs(globalQuery);
       globalSnapshot.docs.forEach(doc => {
@@ -1270,15 +1269,15 @@ class FirebaseService {
         collection(db, 'suppliers'),
         where('type', '==', 'restaurant_specific'),
         where('restaurantId', '==', restaurantId),
-        where('isActive', '==', true),
-        orderBy('name')
+        where('isActive', '==', true)
       );
       const restaurantSnapshot = await getDocs(restaurantQuery);
       restaurantSnapshot.docs.forEach(doc => {
         suppliers.push({ id: doc.id, ...doc.data() } as Supplier);
       });
       
-      return suppliers;
+      // Sort in memory to avoid composite index requirement
+      return suppliers.sort((a, b) => a.name.localeCompare(b.name));
     } catch (error) {
       console.error('Error fetching suppliers:', error);
       throw error;
@@ -1287,10 +1286,11 @@ class FirebaseService {
 
   async getAllSuppliers(): Promise<Supplier[]> {
     try {
-      const snapshot = await getDocs(
-        query(collection(db, 'suppliers'), orderBy('created_at', 'desc'))
-      );
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Supplier));
+      const snapshot = await getDocs(collection(db, 'suppliers'));
+      const suppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Supplier));
+      
+      // Sort in memory to avoid composite index requirement
+      return suppliers.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     } catch (error) {
       console.error('Error fetching all suppliers:', error);
       throw error;
@@ -1341,12 +1341,18 @@ class FirebaseService {
       const q = query(
         collection(db, 'supplierProducts'),
         where('supplierId', '==', supplierId),
-        where('isAvailable', '==', true),
-        orderBy('category'),
-        orderBy('name')
+        where('isAvailable', '==', true)
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
+      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
+      
+      // Sort in memory to avoid composite index requirement
+      return products.sort((a, b) => {
+        if (a.category !== b.category) {
+          return a.category.localeCompare(b.category);
+        }
+        return a.name.localeCompare(b.name);
+      });
     } catch (error) {
       console.error('Error fetching supplier products:', error);
       throw error;
@@ -1396,11 +1402,13 @@ class FirebaseService {
     try {
       const q = query(
         collection(db, 'purchaseOrders'),
-        where('restaurantId', '==', restaurantId),
-        orderBy('created_at', 'desc')
+        where('restaurantId', '==', restaurantId)
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
+      const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
+      
+      // Sort in memory to avoid composite index requirement
+      return orders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     } catch (error) {
       console.error('Error fetching purchase orders:', error);
       throw error;
@@ -1409,13 +1417,12 @@ class FirebaseService {
 
   async getAllPurchaseOrders(): Promise<PurchaseOrder[]> {
     try {
-      const q = query(
-        collection(db, 'purchaseOrders'),
-        orderBy('created_at', 'desc'),
-        limit(1000)
-      );
+      const q = query(collection(db, 'purchaseOrders'), limit(1000));
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
+      const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
+      
+      // Sort in memory to avoid composite index requirement
+      return orders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     } catch (error) {
       console.error('Error fetching all purchase orders:', error);
       throw error;
@@ -1454,6 +1461,28 @@ class FirebaseService {
     }
   }
 
+  // =======================
+  // Supplier Authentication
+  // =======================
+  
+  async createSupplierUser(userData: {
+    email: string;
+    name: string;
+    supplierId: string;
+    role: 'supplier_admin' | 'supplier_staff';
+  }): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, 'supplierUsers'), {
+        ...userData,
+        isActive: true,
+        created_at: new Date().toISOString(),
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error creating supplier user:', error);
+      throw error;
+    }
+  }
   // =======================
   // Supplier Users (for supplier portal)
   // =======================
