@@ -11,10 +11,19 @@ import {
   Settings, 
   LogOut,
   User,
-  Building2
+  Building2,
+  Menu,
+  X
 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../config/firebase';
+import { SupplierOrders } from './SupplierOrders';
+import { SupplierCustomers } from './SupplierCustomers';
+import { SupplierProducts } from './SupplierProducts';
+import { SupplierInvoices } from './SupplierInvoices';
+import { SupplierMap } from './SupplierMap';
+import { SupplierAnalytics } from './SupplierAnalytics';
+import { SupplierSettings } from './SupplierSettings';
 
 export const SupplierLayout: React.FC = () => {
   const location = useLocation();
@@ -55,10 +64,50 @@ export const SupplierLayout: React.FC = () => {
     return location.pathname.startsWith(path);
   };
 
+  const renderContent = () => {
+    switch (location.pathname) {
+      case '/supplier/orders':
+        return <SupplierOrders />;
+      case '/supplier/customers':
+        return <SupplierCustomers />;
+      case '/supplier/products':
+        return <SupplierProducts />;
+      case '/supplier/invoices':
+        return <SupplierInvoices />;
+      case '/supplier/map':
+        return <SupplierMap />;
+      case '/supplier/analytics':
+        return <SupplierAnalytics />;
+      case '/supplier/settings':
+        return <SupplierSettings />;
+      default:
+        return <Outlet />;
+    }
+  };
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      {/* Mobile menu button */}
+      <div className="lg:hidden fixed top-4 left-4 z-50">
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="bg-white p-2 rounded-lg shadow-lg hover:bg-gray-50 transition-colors"
+        >
+          {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
+      </div>
+
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className="w-64 bg-white shadow-lg">
+      <div className={`w-64 bg-white shadow-lg fixed lg:static inset-y-0 left-0 z-40 transform transition-transform duration-300 ease-in-out ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      }`}>
         <div className="p-6 border-b">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -76,6 +125,7 @@ export const SupplierLayout: React.FC = () => {
             <Link
               key={item.path}
               to={item.path}
+              onClick={() => setSidebarOpen(false)}
               className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                 isActive(item.path, item.exact)
                   ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600'
@@ -109,8 +159,9 @@ export const SupplierLayout: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-auto">
-        <Outlet />
+      <div className="flex-1 overflow-auto lg:ml-0">
+        <div className="lg:hidden h-16"></div> {/* Spacer for mobile menu button */}
+        {renderContent()}
       </div>
     </div>
   );

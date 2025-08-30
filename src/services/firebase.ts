@@ -1518,6 +1518,23 @@ class FirebaseService {
     }
   }
 
+  async getSupplierOrders(supplierId: string): Promise<PurchaseOrder[]> {
+    try {
+      const q = query(
+        collection(db, 'purchaseOrders'),
+        where('supplierId', '==', supplierId)
+      );
+      const snapshot = await getDocs(q);
+      const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
+      
+      // Sort in memory to avoid composite index requirement
+      return orders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    } catch (error) {
+      console.error('Error fetching supplier orders:', error);
+      throw error;
+    }
+  }
+
   async getSupplierCustomers(supplierId: string): Promise<RestaurantCustomer[]> {
     try {
       // Get all purchase orders for this supplier

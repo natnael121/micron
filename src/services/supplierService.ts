@@ -291,6 +291,15 @@ class SupplierService {
     }
   }
 
+  async getSupplierOrders(supplierId: string): Promise<PurchaseOrder[]> {
+    try {
+      return await firebaseService.getSupplierOrders(supplierId);
+    } catch (error) {
+      console.error('Error fetching supplier orders:', error);
+      throw error;
+    }
+  }
+
   async getAllPurchaseOrders(): Promise<PurchaseOrder[]> {
     try {
       const q = query(
