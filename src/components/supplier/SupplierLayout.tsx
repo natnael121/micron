@@ -22,7 +22,7 @@ import { SupplierCustomers } from './SupplierCustomers';
 import { SupplierProducts } from './SupplierProducts';
 import { SupplierInvoices } from './SupplierInvoices';
 import { SupplierMap } from './SupplierMap';
-import { SupplierAnalytics } from './SupplierAnalytics';
+import { SupplierAnalytics } from './supplierAnalytics';
 import { SupplierSettings } from './SupplierSettings';
 
 export const SupplierLayout: React.FC = () => {
