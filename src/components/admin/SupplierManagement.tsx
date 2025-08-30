@@ -12,7 +12,8 @@ import {
   TrendingUp,
   Search,
   Filter,
-  Download
+  Download,
+  DollarSign
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { supplierService } from '../../services/supplierService';
