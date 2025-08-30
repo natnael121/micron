@@ -91,7 +91,6 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
       const supplierData: Omit<Supplier, 'id'> = {
         ...formData,
         type: isGlobal ? 'global' : 'restaurant_specific',
-        restaurantId: isGlobal ? undefined : restaurantId,
         created_at: supplier?.created_at || new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -99,6 +98,8 @@ export const SupplierModal: React.FC<SupplierModalProps> = ({
       // Only add createdBy field for global suppliers
       if (isGlobal) {
         (supplierData as any).createdBy = 'super_admin';
+      } else {
+        (supplierData as any).restaurantId = restaurantId;
       }
 
       if (supplier) {
