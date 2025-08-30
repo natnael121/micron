@@ -21,6 +21,7 @@ import { SuperAdminSuppliers } from './components/admin/SuperAdminSuppliers';
 import { SupplierLayout } from './components/supplier/SupplierLayout';
 import { SupplierLogin } from './components/supplier/SupplierLogin';
 import { SupplierDashboard } from './components/supplier/SupplierDashboard';
+import { SupplierSignup } from './components/supplier/SupplierSignup';
 import { MenuPage } from './pages/MenuPage';
 
 function App() {
@@ -51,6 +52,7 @@ function App() {
         
         {/* Supplier Routes */}
         <Route path="/supplier/login" element={<SupplierLogin />} />
+        <Route path="/supplier/signup" element={<SupplierSignup />} />
         <Route path="/supplier" element={<SupplierLayout />}>
           <Route index element={<SupplierDashboard />} />
         </Route>

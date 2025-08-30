@@ -131,10 +131,20 @@ export const SupplierLogin: React.FC = () => {
         <div className="mt-6 text-center">
           <div className="flex items-center justify-center space-x-2 text-gray-500 text-sm">
             <Building2 className="w-4 h-4" />
-            <span>For restaurant owners:</span>
+            <span>New supplier?</span>
+            <button
+              onClick={() => navigate('/supplier/signup')}
+              className="text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Create Account
+            </button>
+          </div>
+          <div className="flex items-center justify-center space-x-2 text-gray-500 text-sm mt-2">
+            <Building2 className="w-4 h-4" />
+            <span>Restaurant owner?</span>
             <button
               onClick={() => navigate('/login')}
-              className="text-blue-600 hover:text-blue-700 font-medium"
+              className="text-green-600 hover:text-green-700 font-medium"
             >
               Restaurant Login
             </button>

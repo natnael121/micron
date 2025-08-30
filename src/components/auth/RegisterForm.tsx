@@ -181,6 +181,14 @@ export const RegisterForm: React.FC = () => {
               Sign in
             </Link>
           </p>
+          <div className="mt-3 pt-3 border-t border-gray-200">
+            <p className="text-gray-500 text-sm">
+              Are you a supplier?{' '}
+              <Link to="/supplier/signup" className="text-blue-600 hover:text-blue-700 font-medium">
+                Join as Global Supplier
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -185,6 +185,25 @@ class SupplierService {
       throw error;
     }
   }
+
+  async createSupplierUser(userData: {
+    email: string;
+    name: string;
+    supplierId: string;
+    role: 'supplier_admin' | 'supplier_staff';
+  }): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, 'supplierUsers'), {
+        ...userData,
+        isActive: true,
+        created_at: new Date().toISOString(),
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error creating supplier user:', error);
+      throw error;
+    }
+  }
   // =======================
   // Product Management
   // =======================
