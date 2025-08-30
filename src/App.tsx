@@ -22,6 +22,13 @@ import { SupplierLayout } from './components/supplier/SupplierLayout';
 import { SupplierLogin } from './components/supplier/SupplierLogin';
 import { SupplierDashboard } from './components/supplier/SupplierDashboard';
 import { SupplierSignup } from './components/supplier/SupplierSignup';
+import { SupplierOrders } from './components/supplier/SupplierOrders';
+import { SupplierCustomers } from './components/supplier/SupplierCustomers';
+import { SupplierProducts } from './components/supplier/SupplierProducts';
+import { SupplierInvoices } from './components/supplier/SupplierInvoices';
+import { SupplierMap } from './components/supplier/SupplierMap';
+import { SupplierAnalytics } from './components/supplier/supplierAnalytics';
+import { SupplierSettings } from './components/supplier/SupplierSettings';
 import { MenuPage } from './pages/MenuPage';
 
 function App() {
@@ -55,6 +62,13 @@ function App() {
         <Route path="/supplier/signup" element={<SupplierSignup />} />
         <Route path="/supplier" element={<SupplierLayout />}>
           <Route index element={<SupplierDashboard />} />
+          <Route path="orders" element={<SupplierOrders />} />
+          <Route path="customers" element={<SupplierCustomers />} />
+          <Route path="products" element={<SupplierProducts />} />
+          <Route path="invoices" element={<SupplierInvoices />} />
+          <Route path="map" element={<SupplierMap />} />
+          <Route path="analytics" element={<SupplierAnalytics />} />
+          <Route path="settings" element={<SupplierSettings />} />
         </Route>
         
         {/* Super Admin Routes */}

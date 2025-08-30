@@ -17,13 +17,6 @@ import {
 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../config/firebase';
-import { SupplierOrders } from './SupplierOrders';
-import { SupplierCustomers } from './SupplierCustomers';
-import { SupplierProducts } from './SupplierProducts';
-import { SupplierInvoices } from './SupplierInvoices';
-import { SupplierMap } from './SupplierMap';
-import { SupplierAnalytics } from './supplierAnalytics';
-import { SupplierSettings } from './SupplierSettings';
 
 export const SupplierLayout: React.FC = () => {
   const location = useLocation();
@@ -64,26 +57,6 @@ export const SupplierLayout: React.FC = () => {
     return location.pathname.startsWith(path);
   };
 
-  const renderContent = () => {
-    switch (location.pathname) {
-      case '/supplier/orders':
-        return <SupplierOrders />;
-      case '/supplier/customers':
-        return <SupplierCustomers />;
-      case '/supplier/products':
-        return <SupplierProducts />;
-      case '/supplier/invoices':
-        return <SupplierInvoices />;
-      case '/supplier/map':
-        return <SupplierMap />;
-      case '/supplier/analytics':
-        return <SupplierAnalytics />;
-      case '/supplier/settings':
-        return <SupplierSettings />;
-      default:
-        return <Outlet />;
-    }
-  };
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Mobile menu button */}
@@ -161,7 +134,7 @@ export const SupplierLayout: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 overflow-auto lg:ml-0">
         <div className="lg:hidden h-16"></div> {/* Spacer for mobile menu button */}
-        {renderContent()}
+        <Outlet />
       </div>
     </div>
   );
