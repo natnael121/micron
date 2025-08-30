@@ -872,7 +872,7 @@ class FirebaseService {
       const billData: Omit<Bill, 'id'> = {
         orderId: `table_${tableBill.tableNumber}_${Date.now()}`,
         userId: tableBill.userId,
-        cafeId: tableBill.cafeId,
+        cafeId: tableBill.cafeId || null,
         tableNumber: tableBill.tableNumber,
         items: tableBill.items,
         subtotal: tableBill.subtotal,
