@@ -176,6 +176,7 @@ export const Dashboard: React.FC = () => {
       
       // Mark the table bill as paid
       await firebaseService.markTableBillAsPaid(tableBill.userId, tableBill.tableNumber, undefined, tableBill.cafeId);
+      await firebaseService.markTableBillAsPaid(tableBill.userId, tableBill.tableNumber, null, tableBill.cafeId);
       
       // Reload data to reflect changes
       await loadDashboardData();
