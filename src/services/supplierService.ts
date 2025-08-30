@@ -2,6 +2,7 @@ import {
   collection, 
   doc, 
   addDoc, 
+  setDoc,
   updateDoc, 
   deleteDoc, 
   getDocs, 
@@ -182,6 +183,16 @@ class SupplierService {
       return { supplierId, userId: supplierId };
     } catch (error) {
       console.error('Error creating supplier account:', error);
+      throw error;
+    }
+  }
+
+  async createSupplierUserWithId(userId: string, userData: any): Promise<void> {
+    try {
+      const docRef = doc(db, 'supplierUsers', userId);
+      await setDoc(docRef, userData);
+    } catch (error) {
+      console.error('Error creating supplier user with ID:', error);
       throw error;
     }
   }

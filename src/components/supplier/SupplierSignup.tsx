@@ -210,12 +210,18 @@ export const SupplierSignup: React.FC = () => {
       await supplierService.addSupplier(supplierData);
 
       // Create supplier user record for authentication
-      await supplierService.createSupplierUser({
+      const supplierUser = {
+        id: userCredential.user.uid,
         email: formData.email,
         name: formData.contactPersonName,
-        supplierId: userCredential.user.uid,
-        role: 'supplier_admin'
-      });
+        supplierId: userCredential.user.uid, // This should be the supplier ID, not user ID
+        role: 'supplier_admin' as const,
+        isActive: true,
+        created_at: new Date().toISOString()
+      };
+
+      // Store supplier user in Firestore with the Firebase Auth UID as document ID
+      await supplierService.createSupplierUserWithId(userCredential.user.uid, supplierUser);
 
       alert('Supplier account created successfully! You can now login to your supplier portal.');
       navigate('/supplier/login');
