@@ -221,7 +221,11 @@ export const SupplierSignup: React.FC = () => {
       navigate('/supplier/login');
     } catch (error: any) {
       console.error('Error creating supplier account:', error);
-      setError(error.message || 'Failed to create account. Please try again.');
+      if (error.code === 'auth/email-already-in-use') {
+        setError('An account with this email address already exists. Please use a different email or try logging in.');
+      } else {
+        setError(error.message || 'Failed to create account. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
