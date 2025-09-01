@@ -13,8 +13,8 @@ import {
   limit,
   Timestamp 
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
-import { firebaseService } from './firebase';
+import { db } from '../../config/firebase';
+import { firebaseService } from '../../services/firebase';
 import { 
   Supplier, 
   SupplierProduct, 
