@@ -247,11 +247,18 @@ class SupplierService {
         collection(db, 'supplierProducts'),
         where('supplierId', '==', supplierId),
         where('isAvailable', '==', true),
-        orderBy('category'),
-        orderBy('name')
+        orderBy('category')
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
+      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
+      
+      // Sort in memory to avoid composite index requirement
+      return products.sort((a, b) => {
+        if (a.category !== b.category) {
+          return a.category.localeCompare(b.category);
+        }
+        return a.name.localeCompare(b.name);
+      });
     } catch (error) {
       console.error('Error fetching supplier products:', error);
       throw error;

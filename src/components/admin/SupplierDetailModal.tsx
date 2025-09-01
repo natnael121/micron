@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Phone, Mail, MapPin, Package, Plus, Calendar, DollarSign } from 'lucide-react';
+import { X, Phone, Mail, MapPin, Package, Plus, Calendar, DollarSign, ShoppingCart, Eye } from 'lucide-react';
 import { Supplier, SupplierProduct, PurchaseOrder } from '../../types/supplier';
 import { supplierService } from '../../services/supplierService';
+import { format } from 'date-fns';
 
 interface SupplierDetailModalProps {
   supplier: Supplier;
@@ -20,7 +21,7 @@ export function SupplierDetailModal({ supplier, onClose, onCreateOrder }: Suppli
       try {
         setLoading(true);
         const [productsData, ordersData] = await Promise.all([
-          supplierService.getSupplierProducts(supplier.id),
+          supplierService.getAllSupplierProducts(supplier.id), // Use getAllSupplierProducts to get all products including unavailable ones
           supplierService.getSupplierOrders(supplier.id)
         ]);
         setProducts(productsData);
@@ -205,7 +206,20 @@ export function SupplierDetailModal({ supplier, onClose, onCreateOrder }: Suppli
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Products</h3>
-                <span className="text-sm text-gray-500">{products.length} items</span>
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-gray-500">
+                    {products.filter(p => p.isAvailable).length} available of {products.length} total
+                  </span>
+                  {onCreateOrder && (
+                    <button
+                      onClick={handleCreateOrder}
+                      className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors flex items-center space-x-1"
+                    >
+                      <ShoppingCart className="w-3 h-3" />
+                      <span>Create Order</span>
+                    </button>
+                  )}
+                </div>
               </div>
               
               {loading ? (
@@ -219,33 +233,125 @@ export function SupplierDetailModal({ supplier, onClose, onCreateOrder }: Suppli
                   <p className="text-gray-500">No products available</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {products.map((product) => (
-                    <div key={product.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">{product.name}</h4>
-                          <p className="text-sm text-gray-600 mt-1">{product.description}</p>
-                          <div className="flex items-center space-x-4 mt-2">
-                            <span className="text-sm text-gray-500">
-                              Category: {product.category}
+                    <div key={product.id} className={`border rounded-lg p-4 ${
+                      product.isAvailable ? 'border-gray-200 bg-white' : 'border-gray-300 bg-gray-50'
+                    }`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-3 h-3 rounded-full ${
+                            product.isAvailable ? 'bg-green-500' : 'bg-red-500'
+                          }`} />
+                          <h4 className={`font-medium ${
+                            product.isAvailable ? 'text-gray-900' : 'text-gray-500'
+                          }`}>
+                            {product.name}
+                          </h4>
+                        </div>
+                        <span className={`text-lg font-bold ${
+                          product.isAvailable ? 'text-blue-600' : 'text-gray-400'
+                        }`}>
+                          ${product.unitPrice.toFixed(2)}
+                        </span>
+                      </div>
+                      
+                      <p className={`text-sm mb-3 line-clamp-2 ${
+                        product.isAvailable ? 'text-gray-600' : 'text-gray-400'
+                      }`}>
+                        {product.description}
+                      </p>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500">Category:</span>
+                          <span className={product.isAvailable ? 'text-gray-900' : 'text-gray-500'}>
+                            {product.category}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500">Unit:</span>
+                          <span className={product.isAvailable ? 'text-gray-900' : 'text-gray-500'}>
+                            {product.unit}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500">Min Order:</span>
+                          <span className={product.isAvailable ? 'text-gray-900' : 'text-gray-500'}>
+                            {product.minimumOrderQuantity} {product.unit}
+                          </span>
+                        </div>
+                        
+                        {product.sku && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500">SKU:</span>
+                            <span className={`font-mono text-xs ${
+                              product.isAvailable ? 'text-gray-700' : 'text-gray-400'
+                            }`}>
+                              {product.sku}
                             </span>
-                            {product.sku && (
+                          </div>
+                        )}
+                        
+                        {product.brand && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500">Brand:</span>
+                            <span className={product.isAvailable ? 'text-gray-900' : 'text-gray-500'}>
+                              {product.brand}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {product.leadTimeDays && product.leadTimeDays > 0 && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500">Lead Time:</span>
+                            <span className={product.isAvailable ? 'text-gray-900' : 'text-gray-500'}>
+                              {product.leadTimeDays} days
+                            </span>
+                          </div>
+                        )}
+                        
+                        {product.stockQuantity !== undefined && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-500">Stock:</span>
+                            <span className={`font-medium ${
+                              !product.isAvailable ? 'text-gray-400' :
+                              product.stockQuantity > 10 ? 'text-green-600' : 
+                              product.stockQuantity > 0 ? 'text-yellow-600' : 'text-red-600'
+                            }`}>
+                              {product.stockQuantity} {product.unit}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {!product.isAvailable && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <span className="text-xs text-red-600 font-medium">Currently Unavailable</span>
+                        </div>
+                      )}
+                      
+                      {product.images && product.images.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <div className="flex space-x-2">
+                            {product.images.slice(0, 3).map((image, index) => (
+                              <img
+                                key={index}
+                                src={image}
+                                alt={`${product.name} ${index + 1}`}
+                                className="w-12 h-12 object-cover rounded border"
+                              />
+                            ))}
+                            {product.images.length > 3 && (
                               <span className="text-sm text-gray-500">
-                                SKU: {product.sku}
+                                +{product.images.length - 3} more
                               </span>
                             )}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-gray-900">
-                            ${product.price.toFixed(2)}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            per {product.unit}
-                          </p>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -278,11 +384,11 @@ export function SupplierDetailModal({ supplier, onClose, onCreateOrder }: Suppli
                         <div className="flex-1">
                           <h4 className="font-medium text-gray-900">{order.orderNumber}</h4>
                           <p className="text-sm text-gray-600 mt-1">
-                            {new Date(order.created_at).toLocaleDateString()}
+                            {format(new Date(order.created_at), 'MMM dd, yyyy')}
                           </p>
                           <div className="flex items-center space-x-4 mt-2">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              order.status === 'sent' ? 'bg-yellow-100 text-yellow-800' :
                               order.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
                               order.status === 'shipped' ? 'bg-purple-100 text-purple-800' :
                               order.status === 'delivered' ? 'bg-green-100 text-green-800' :
@@ -298,6 +404,9 @@ export function SupplierDetailModal({ supplier, onClose, onCreateOrder }: Suppli
                         <div className="text-right">
                           <p className="font-semibold text-gray-900">
                             ${order.total.toFixed(2)}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {order.items.reduce((sum, item) => sum + item.quantity, 0)} total items
                           </p>
                         </div>
                       </div>
@@ -321,7 +430,12 @@ export function SupplierDetailModal({ supplier, onClose, onCreateOrder }: Suppli
             <div className="flex items-center space-x-2">
               <Package className="w-4 h-4 text-gray-400" />
               <span className="text-sm text-gray-600">
-                Min order: ${supplier.deliveryInfo.minimumOrder}
+                Min order: ${supplier.deliveryInfo?.minimumOrder || 0}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-600">
+                {products.length} products available
               </span>
             </div>
           </div>
@@ -346,4 +460,4 @@ export function SupplierDetailModal({ supplier, onClose, onCreateOrder }: Suppli
       </div>
     </div>
   );
-}
+};

@@ -1301,6 +1301,62 @@ class FirebaseService {
     }
   }
 
+  async getSupplierCustomers(supplierId: string): Promise<RestaurantCustomer[]> {
+    try {
+      // Get all purchase orders for this supplier
+      const orders = await this.getSupplierOrders(supplierId);
+      
+      // Group orders by restaurant to create customer data
+      const customerMap = new Map<string, RestaurantCustomer>();
+      
+      for (const order of orders) {
+        const restaurantId = order.restaurantId;
+        
+        if (!customerMap.has(restaurantId)) {
+          // Get restaurant details
+          const restaurant = await this.getUserProfile(restaurantId);
+          
+          customerMap.set(restaurantId, {
+            id: restaurantId,
+            name: restaurant?.businessName || restaurant?.name || `Restaurant #${restaurantId.slice(0, 8)}`,
+            contactEmail: restaurant?.email || '',
+            contactPhone: restaurant?.phone || '',
+            address: {
+              line1: restaurant?.address || '',
+              line2: '',
+              city: restaurant?.city || '',
+              state: restaurant?.state || '',
+              postalCode: restaurant?.postalCode || '',
+              country: restaurant?.country || 'US',
+            },
+            totalOrders: 0,
+            totalSpent: 0,
+            averageOrderValue: 0,
+            status: 'active'
+          });
+        }
+        
+        const customer = customerMap.get(restaurantId)!;
+        customer.totalOrders++;
+        customer.totalSpent += order.total;
+        customer.lastOrderDate = order.created_at;
+      }
+      
+      // Calculate average order values
+      const customers = Array.from(customerMap.values());
+      customers.forEach(customer => {
+        customer.averageOrderValue = customer.totalOrders > 0 
+          ? customer.totalSpent / customer.totalOrders 
+          : 0;
+      });
+      
+      return customers.sort((a, b) => b.totalSpent - a.totalSpent);
+    } catch (error) {
+      console.error('Error fetching supplier customers:', error);
+      return [];
+    }
+  }
+
   async getAllSuppliers(): Promise<Supplier[]> {
     try {
       const snapshot = await getDocs(collection(db, 'suppliers'));
