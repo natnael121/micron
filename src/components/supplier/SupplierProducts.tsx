@@ -34,10 +34,13 @@ export const SupplierProducts: React.FC = () => {
     
     try {
       setLoading(true);
-      const productsData = await supplierService.getSupplierProducts(supplierUser.supplierId);
+      console.log('Loading products for supplier:', supplierUser.supplierId);
+      const productsData = await supplierService.getAllSupplierProducts(supplierUser.supplierId);
+      console.log('Products loaded:', productsData.length);
       setProducts(productsData);
     } catch (error) {
       console.error('Error loading products:', error);
+      setProducts([]); // Set empty array to prevent crashes
     } finally {
       setLoading(false);
     }

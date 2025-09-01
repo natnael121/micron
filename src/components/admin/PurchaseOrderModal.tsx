@@ -43,10 +43,13 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const productsData = await supplierService.getSupplierProducts(supplier.id);
+      console.log('Loading products for supplier:', supplier.id, supplier.name);
+      const productsData = await supplierService.getAllSupplierProducts(supplier.id);
+      console.log('Products loaded:', productsData.length);
       setProducts(productsData);
     } catch (error) {
       console.error('Error loading products:', error);
+      setProducts([]); // Set empty array to prevent crashes
     } finally {
       setLoading(false);
     }

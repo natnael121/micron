@@ -440,7 +440,7 @@ export const SupplierManagement: React.FC = () => {
         <SupplierDetailModal
           supplier={viewingSupplier}
           onClose={() => setViewingSupplier(null)}
-          onCreateOrder={() => {
+          onCreateOrder={viewingSupplier.type === 'global' ? undefined : () => {
             setShowCreateOrder(viewingSupplier);
             setViewingSupplier(null);
           }}

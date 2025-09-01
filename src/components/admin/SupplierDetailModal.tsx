@@ -239,7 +239,10 @@ export function SupplierDetailModal({ supplier, onClose, onCreateOrder }: Suppli
               ) : products.length === 0 ? (
                 <div className="text-center py-8">
                   <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No products available</p>
+                  <p className="text-gray-500">No products found for this supplier</p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    Products may need to be added through the supplier portal
+                  </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
