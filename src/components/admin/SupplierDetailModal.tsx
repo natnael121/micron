@@ -20,14 +20,23 @@ export function SupplierDetailModal({ supplier, onClose, onCreateOrder }: Suppli
     const loadData = async () => {
       try {
         setLoading(true);
-        const [productsData, ordersData] = await Promise.all([
-          supplierService.getAllSupplierProducts(supplier.id), // Use getAllSupplierProducts to get all products including unavailable ones
-          supplierService.getSupplierOrders(supplier.id)
-        ]);
+        console.log('Loading data for supplier:', supplier.id, supplier.name);
+        
+        // Try to get products using the supplier ID
+        const productsData = await supplierService.getAllSupplierProducts(supplier.id);
+        console.log('Products loaded:', productsData.length);
+        
+        // Get orders
+        const ordersData = await supplierService.getSupplierOrders(supplier.id);
+        console.log('Orders loaded:', ordersData.length);
+        
         setProducts(productsData);
         setRecentOrders(ordersData.slice(0, 5)); // Show last 5 orders
       } catch (error) {
         console.error('Error loading supplier data:', error);
+        // Set empty arrays to prevent UI crashes
+        setProducts([]);
+        setRecentOrders([]);
       } finally {
         setLoading(false);
       }

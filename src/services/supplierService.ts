@@ -237,7 +237,7 @@ class SupplierService {
       });
     } catch (error) {
       console.error('Error fetching all supplier products:', error);
-      throw error;
+      return []; // Return empty array instead of throwing to prevent UI crashes
     }
   }
 
@@ -246,8 +246,7 @@ class SupplierService {
       const q = query(
         collection(db, 'supplierProducts'),
         where('supplierId', '==', supplierId),
-        where('isAvailable', '==', true),
-        orderBy('category')
+        where('isAvailable', '==', true)
       );
       const snapshot = await getDocs(q);
       const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
@@ -261,7 +260,7 @@ class SupplierService {
       });
     } catch (error) {
       console.error('Error fetching supplier products:', error);
-      throw error;
+      return []; // Return empty array instead of throwing to prevent UI crashes
     }
   }
 
