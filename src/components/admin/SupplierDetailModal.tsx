@@ -234,12 +234,11 @@ class SupplierService {
           return a.category.localeCompare(b.category);
         }
         return a.name.localeCompare(b.name);
-          } catch (error) {
+      });
+    } catch (error) {
       console.error('Error fetching supplier products:', error);
       throw error;
     }
-      )
-      }
   }
 
   async addSupplierProduct(product: Omit<SupplierProduct, 'id'>): Promise<string> {
