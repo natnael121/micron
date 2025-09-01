@@ -120,6 +120,7 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
       
       const orderData = {
         supplierId: supplier.id,
+        restaurantId,
         items: orderItems,
         subtotal,
         tax,
@@ -131,6 +132,7 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
         orderDate: new Date().toISOString(),
         requestedDeliveryDate: requestedDeliveryDate || undefined,
         notes,
+        createdBy: restaurantId,
       };
 
       await onSave(orderData);

@@ -172,6 +172,11 @@ export const SupplierOrders: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">Restaurant #{order.restaurantId.slice(0, 8)}</div>
+                    {order.deliveryAddress && (
+                      <div className="text-xs text-gray-500">
+                        {order.deliveryAddress.city}, {order.deliveryAddress.state}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{order.items.length} items</div>

@@ -266,6 +266,12 @@ export const SupplierMap: React.FC = () => {
                     <MapPin className="w-4 h-4 text-gray-500 mt-0.5" />
                     <span className="text-sm text-gray-700">{selectedLocation.address}</span>
                   </div>
+                  {selectedLocation.restaurantLocation && (
+                    <div className="mt-2 text-xs text-gray-500">
+                      <p><strong>Restaurant:</strong> {selectedLocation.restaurantLocation.name}</p>
+                      <p><strong>Location:</strong> {selectedLocation.restaurantLocation.address}</p>
+                    </div>
+                  )}
                 </div>
               </div>
               

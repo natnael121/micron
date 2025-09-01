@@ -147,6 +147,8 @@ export interface PurchaseOrder {
     state: string;
     postalCode: string;
     country: string;
+    latitude?: number;
+    longitude?: number;
     instructions?: string;
   };
   

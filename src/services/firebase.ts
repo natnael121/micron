@@ -1434,16 +1434,34 @@ class FirebaseService {
 
   async addPurchaseOrder(order: Omit<PurchaseOrder, 'id' | 'orderNumber'>): Promise<string> {
     try {
+      // Get restaurant location information
+      const restaurant = await this.getUserProfile(order.restaurantId);
+      
       // Generate order number
       const today = new Date();
       const dateStr = today.toISOString().split('T')[0];
       const orderNumber = `PO-${dateStr}-${Date.now().toString().slice(-6)}`;
       
-      const docRef = await addDoc(collection(db, 'purchaseOrders'), {
+      // Add delivery address from restaurant profile if not provided
+      const orderData = {
         ...order,
         orderNumber,
+        deliveryAddress: order.deliveryAddress || (restaurant ? {
+          line1: restaurant.address || '',
+          line2: restaurant.addressLine2 || '',
+          city: restaurant.city || '',
+          state: restaurant.state || '',
+          postalCode: restaurant.postalCode || '',
+          country: restaurant.country || 'US',
+          latitude: restaurant.latitude,
+          longitude: restaurant.longitude,
+        } : undefined),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+      };
+      
+      const docRef = await addDoc(collection(db, 'purchaseOrders'), {
+        ...orderData,
       });
       return docRef.id;
     } catch (error) {
