@@ -1,581 +1,349 @@
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  setDoc,
-  updateDoc, 
-  deleteDoc, 
-  getDocs, 
-  getDoc, 
-  query, 
-  where, 
-  orderBy, 
-  limit,
-  Timestamp 
-} from 'firebase/firestore';
-import { db } from '../../config/firebase';
-import { firebaseService } from '../../services/firebase';
-import { 
-  Supplier, 
-  SupplierProduct, 
-  PurchaseOrder, 
-  SupplierInvoice, 
-  SupplierAnalytics,
-  ProductCategory 
-} from '../types/supplier';
+import React, { useState, useEffect } from 'react';
+import { X, Phone, Mail, MapPin, Package, Plus, Calendar, DollarSign } from 'lucide-react';
+import { Supplier, SupplierProduct, PurchaseOrder } from '../../types/supplier';
+import { supplierService } from '../../services/supplierService';
 
-class SupplierService {
-  // =======================
-  // Supplier Management
-  // =======================
-  
-  async getSuppliers(restaurantId?: string): Promise<Supplier[]> {
-    try {
-      const suppliers: Supplier[] = [];
-      
-      // Get global suppliers (visible to all restaurants)
-      const globalQuery = query(
-        collection(db, 'suppliers'),
-        where('type', '==', 'global'),
-        where('isActive', '==', true),
-        orderBy('name')
-      );
-      const globalSnapshot = await getDocs(globalQuery);
-      globalSnapshot.docs.forEach(doc => {
-        suppliers.push({ id: doc.id, ...doc.data() } as Supplier);
-      });
-      
-      // Get restaurant-specific suppliers if restaurantId provided
-      if (restaurantId) {
-        const restaurantQuery = query(
-          collection(db, 'suppliers'),
-          where('type', '==', 'restaurant_specific'),
-          where('restaurantId', '==', restaurantId),
-          where('isActive', '==', true),
-          orderBy('name')
-        );
-        const restaurantSnapshot = await getDocs(restaurantQuery);
-        restaurantSnapshot.docs.forEach(doc => {
-          suppliers.push({ id: doc.id, ...doc.data() } as Supplier);
-        });
-      }
-      
-      return suppliers;
-    } catch (error) {
-      console.error('Error fetching suppliers:', error);
-      throw error;
-    }
-  }
-
-  async getAllSuppliers(): Promise<Supplier[]> {
-    try {
-      const snapshot = await getDocs(
-        query(collection(db, 'suppliers'), orderBy('created_at', 'desc'))
-      );
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Supplier));
-    } catch (error) {
-      console.error('Error fetching all suppliers:', error);
-      throw error;
-    }
-  }
-
-  async getSupplier(id: string): Promise<Supplier | null> {
-    try {
-      const docRef = doc(db, 'suppliers', id);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as Supplier;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error fetching supplier:', error);
-      throw error;
-    }
-  }
-
-  async addSupplier(supplier: Omit<Supplier, 'id'>): Promise<string> {
-    try {
-      return await firebaseService.addSupplier(supplier);
-    } catch (error) {
-      console.error('Error adding supplier:', error);
-      throw error;
-    }
-  }
-
-  async updateSupplier(id: string, updates: Partial<Supplier>): Promise<void> {
-    try {
-      const docRef = doc(db, 'suppliers', id);
-      await updateDoc(docRef, {
-        ...updates,
-        updated_at: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error('Error updating supplier:', error);
-      throw error;
-    }
-  }
-
-  async deleteSupplier(id: string): Promise<void> {
-    try {
-      await deleteDoc(doc(db, 'suppliers', id));
-    } catch (error) {
-      console.error('Error deleting supplier:', error);
-      throw error;
-    }
-  }
-
-  // =======================
-  // Supplier Authentication
-  // =======================
-  
-  async createSupplierAccount(supplierData: {
-    email: string;
-    password: string;
-    name: string;
-    businessName: string;
-    phone: string;
-    address: {
-      line1: string;
-      line2?: string;
-      city: string;
-      state: string;
-      postalCode: string;
-      country: string;
-    };
-    contactPerson: {
-      name: string;
-      email: string;
-      phone: string;
-      position?: string;
-    };
-  }): Promise<{ supplierId: string; userId: string }> {
-    try {
-      // Create supplier record first
-      const supplier: Omit<Supplier, 'id'> = {
-        name: supplierData.businessName,
-        email: supplierData.email,
-        phone: supplierData.phone,
-        address: supplierData.address,
-        contactPerson: supplierData.contactPerson,
-        businessInfo: {
-          description: `${supplierData.businessName} - Professional supplier services`
-        },
-        type: 'restaurant_specific',
-        isActive: true,
-        paymentTerms: {
-          method: 'bank_transfer',
-          daysNet: 30,
-          discountPercent: 0,
-          discountDays: 0,
-        },
-        deliveryInfo: {
-          minimumOrder: 0,
-          deliveryFee: 0,
-          freeDeliveryThreshold: 100,
-          estimatedDeliveryDays: 3,
-          deliveryAreas: [supplierData.address.city],
-        }
-      };
-
-      const supplierId = await this.addSupplier(supplier);
-
-      return { supplierId, userId: supplierId };
-    } catch (error) {
-      console.error('Error creating supplier account:', error);
-      throw error;
-    }
-  }
-
-  async createSupplierUserWithId(userId: string, userData: any): Promise<void> {
-    try {
-      const docRef = doc(db, 'supplierUsers', userId);
-      await setDoc(docRef, userData);
-    } catch (error) {
-      console.error('Error creating supplier user with ID:', error);
-      throw error;
-    }
-  }
-
-  async createSupplierUser(userData: {
-    email: string;
-    name: string;
-    supplierId: string;
-    role: 'supplier_admin' | 'supplier_staff';
-  }): Promise<string> {
-    try {
-      const docRef = await addDoc(collection(db, 'supplierUsers'), {
-        ...userData,
-        isActive: true,
-        created_at: new Date().toISOString(),
-      });
-      return docRef.id;
-    } catch (error) {
-      console.error('Error creating supplier user:', error);
-      throw error;
-    }
-  }
-  // =======================
-  // Product Management
-  // =======================
-  
-  async getSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
-    try {
-      const q = query(
-        collection(db, 'supplierProducts'),
-        where('supplierId', '==', supplierId)
-      );
-      const snapshot = await getDocs(q);
-      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
-      
-      // Sort in memory to avoid composite index requirement
-      return products.sort((a, b) => {
-        if (a.category !== b.category) {
-          return a.category.localeCompare(b.category);
-        }
-        return a.name.localeCompare(b.name);
-      });
-    } catch (error) {
-      console.error('Error fetching supplier products:', error);
-      throw error;
-    }
-  }
-
-  async addSupplierProduct(product: Omit<SupplierProduct, 'id'>): Promise<string> {
-    try {
-      const docRef = await addDoc(collection(db, 'supplierProducts'), {
-        ...product,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-      return docRef.id;
-    } catch (error) {
-      console.error('Error adding supplier product:', error);
-      throw error;
-    }
-  }
-
-  async updateSupplierProduct(id: string, updates: Partial<SupplierProduct>): Promise<void> {
-    try {
-      const docRef = doc(db, 'supplierProducts', id);
-      await updateDoc(docRef, {
-        ...updates,
-        updated_at: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error('Error updating supplier product:', error);
-      throw error;
-    }
-  }
-
-  async deleteSupplierProduct(id: string): Promise<void> {
-    try {
-      await deleteDoc(doc(db, 'supplierProducts', id));
-    } catch (error) {
-      console.error('Error deleting supplier product:', error);
-      throw error;
-    }
-  }
-
-  // =======================
-  // Purchase Order Management
-  // =======================
-  
-  async getPurchaseOrders(restaurantId: string): Promise<PurchaseOrder[]> {
-    try {
-      const q = query(
-        collection(db, 'purchaseOrders'),
-        where('restaurantId', '==', restaurantId),
-        orderBy('created_at', 'desc')
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
-    } catch (error) {
-      console.error('Error fetching purchase orders:', error);
-      throw error;
-    }
-  }
-
-  async getSupplierOrders(supplierId: string): Promise<PurchaseOrder[]> {
-    try {
-      return await firebaseService.getSupplierOrders(supplierId);
-    } catch (error) {
-      console.error('Error fetching supplier orders:', error);
-      throw error;
-    }
-  }
-
-  async getAllPurchaseOrders(): Promise<PurchaseOrder[]> {
-    try {
-      const q = query(
-        collection(db, 'purchaseOrders'),
-        orderBy('created_at', 'desc'),
-        limit(1000)
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
-    } catch (error) {
-      console.error('Error fetching all purchase orders:', error);
-      throw error;
-    }
-  }
-
-  async getPurchaseOrder(id: string): Promise<PurchaseOrder | null> {
-    try {
-      const docRef = doc(db, 'purchaseOrders', id);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as PurchaseOrder;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error fetching purchase order:', error);
-      throw error;
-    }
-  }
-
-  async addPurchaseOrder(order: Omit<PurchaseOrder, 'id' | 'orderNumber'>): Promise<string> {
-    try {
-      // Generate order number
-      const today = new Date();
-      const dateStr = today.toISOString().split('T')[0];
-      const orderNumber = `PO-${dateStr}-${Date.now().toString().slice(-6)}`;
-      
-      const docRef = await addDoc(collection(db, 'purchaseOrders'), {
-        ...order,
-        orderNumber,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-      return docRef.id;
-    } catch (error) {
-      console.error('Error adding purchase order:', error);
-      throw error;
-    }
-  }
-
-  async updatePurchaseOrder(id: string, updates: Partial<PurchaseOrder>): Promise<void> {
-    try {
-      const docRef = doc(db, 'purchaseOrders', id);
-      await updateDoc(docRef, {
-        ...updates,
-        updated_at: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error('Error updating purchase order:', error);
-      throw error;
-    }
-  }
-
-  async deletePurchaseOrder(id: string): Promise<void> {
-    try {
-      await deleteDoc(doc(db, 'purchaseOrders', id));
-    } catch (error) {
-      console.error('Error deleting purchase order:', error);
-      throw error;
-    }
-  }
-
-  // =======================
-  // Invoice Management
-  // =======================
-  
-  async getSupplierInvoices(restaurantId: string): Promise<SupplierInvoice[]> {
-    try {
-      const q = query(
-        collection(db, 'supplierInvoices'),
-        where('restaurantId', '==', restaurantId),
-        orderBy('created_at', 'desc')
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierInvoice));
-    } catch (error) {
-      console.error('Error fetching supplier invoices:', error);
-      throw error;
-    }
-  }
-
-  async addSupplierInvoice(invoice: Omit<SupplierInvoice, 'id'>): Promise<string> {
-    try {
-      const docRef = await addDoc(collection(db, 'supplierInvoices'), {
-        ...invoice,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-      return docRef.id;
-    } catch (error) {
-      console.error('Error adding supplier invoice:', error);
-      throw error;
-    }
-  }
-
-  async updateSupplierInvoice(id: string, updates: Partial<SupplierInvoice>): Promise<void> {
-    try {
-      const docRef = doc(db, 'supplierInvoices', id);
-      await updateDoc(docRef, {
-        ...updates,
-        updated_at: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error('Error updating supplier invoice:', error);
-      throw error;
-    }
-  }
-
-  // =======================
-  // Product Categories
-  // =======================
-  
-  async getProductCategories(): Promise<ProductCategory[]> {
-    try {
-      const q = query(
-        collection(db, 'productCategories'),
-        where('isActive', '==', true),
-        orderBy('order'),
-        orderBy('name')
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ProductCategory));
-    } catch (error) {
-      console.error('Error fetching product categories:', error);
-      throw error;
-    }
-  }
-
-  async addProductCategory(category: Omit<ProductCategory, 'id'>): Promise<string> {
-    try {
-      const docRef = await addDoc(collection(db, 'productCategories'), {
-        ...category,
-        created_at: new Date().toISOString(),
-      });
-      return docRef.id;
-    } catch (error) {
-      console.error('Error adding product category:', error);
-      throw error;
-    }
-  }
-
-  // =======================
-  // Analytics
-  // =======================
-  
-  async getSupplierAnalytics(restaurantId?: string): Promise<SupplierAnalytics> {
-    try {
-      const [suppliers, purchaseOrders] = await Promise.all([
-        restaurantId ? this.getSuppliers(restaurantId) : this.getAllSuppliers(),
-        restaurantId ? this.getPurchaseOrders(restaurantId) : this.getAllPurchaseOrders()
-      ]);
-
-      const globalSuppliers = suppliers.filter(s => s.type === 'global').length;
-      const restaurantSuppliers = suppliers.filter(s => s.type === 'restaurant_specific').length;
-
-      const totalPurchaseValue = purchaseOrders.reduce((sum, order) => sum + order.total, 0);
-      const averageOrderValue = purchaseOrders.length > 0 ? totalPurchaseValue / purchaseOrders.length : 0;
-
-      // Calculate top suppliers
-      const supplierStats: Record<string, { orders: number; revenue: number; restaurants: Set<string> }> = {};
-      purchaseOrders.forEach(order => {
-        if (!supplierStats[order.supplierId]) {
-          supplierStats[order.supplierId] = { orders: 0, revenue: 0, restaurants: new Set() };
-        }
-        supplierStats[order.supplierId].orders++;
-        supplierStats[order.supplierId].revenue += order.total;
-        supplierStats[order.supplierId].restaurants.add(order.restaurantId);
-      });
-
-      const topSuppliers = Object.entries(supplierStats)
-        .map(([id, stats]) => {
-          const supplier = suppliers.find(s => s.id === id);
-          return {
-            id,
-            name: supplier?.name || 'Unknown',
-            orders: stats.orders,
-            revenue: stats.revenue,
-            restaurants: stats.restaurants.size
-          };
-        })
-        .sort((a, b) => b.revenue - a.revenue)
-        .slice(0, 10);
-
-      // Calculate orders by status
-      const ordersByStatus = purchaseOrders.reduce((acc, order) => {
-        acc[order.status] = (acc[order.status] || 0) + 1;
-        return acc;
-      }, {} as Record<PurchaseOrder['status'], number>);
-
-      // Calculate monthly trends (last 12 months)
-      const monthlyTrends = [];
-      for (let i = 11; i >= 0; i--) {
-        const date = new Date();
-        date.setMonth(date.getMonth() - i);
-        const monthStr = date.toISOString().slice(0, 7); // YYYY-MM
-        
-        const monthOrders = purchaseOrders.filter(order => 
-          order.created_at.startsWith(monthStr)
-        );
-        
-        monthlyTrends.push({
-          month: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-          orders: monthOrders.length,
-          value: monthOrders.reduce((sum, order) => sum + order.total, 0)
-        });
-      }
-
-      return {
-        totalSuppliers: suppliers.length,
-        globalSuppliers,
-        restaurantSuppliers,
-        totalPurchaseOrders: purchaseOrders.length,
-        totalPurchaseValue,
-        averageOrderValue,
-        topSuppliers,
-        topProducts: [], // Would need product-level analytics
-        ordersByStatus,
-        monthlyTrends,
-        supplierPerformance: [] // Would need delivery tracking data
-      };
-    } catch (error) {
-      console.error('Error calculating supplier analytics:', error);
-      throw error;
-    }
-  }
-
-  // =======================
-  // Utility Methods
-  // =======================
-  
-  async generateOrderNumber(): Promise<string> {
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0];
-    const timestamp = Date.now().toString().slice(-6);
-    return `PO-${dateStr}-${timestamp}`;
-  }
-
-  async searchProducts(query: string, supplierId?: string): Promise<SupplierProduct[]> {
-    try {
-      let q = collection(db, 'supplierProducts');
-      
-      if (supplierId) {
-        q = query(q, where('supplierId', '==', supplierId));
-      }
-      
-      const snapshot = await getDocs(q);
-      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
-      
-      // Client-side filtering for search
-      const searchTerm = query.toLowerCase();
-      return products.filter(product => 
-        product.name.toLowerCase().includes(searchTerm) ||
-        product.description.toLowerCase().includes(searchTerm) ||
-        product.category.toLowerCase().includes(searchTerm) ||
-        product.sku?.toLowerCase().includes(searchTerm)
-      );
-    } catch (error) {
-      console.error('Error searching products:', error);
-      throw error;
-    }
-  }
+interface SupplierDetailModalProps {
+  supplier: Supplier;
+  onClose: () => void;
+  onCreateOrder?: (supplierId: string) => void;
 }
 
-export const supplierService = new SupplierService();
+export function SupplierDetailModal({ supplier, onClose, onCreateOrder }: SupplierDetailModalProps) {
+  const [products, setProducts] = useState<SupplierProduct[]>([]);
+  const [recentOrders, setRecentOrders] = useState<PurchaseOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'info' | 'products' | 'orders'>('info');
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [productsData, ordersData] = await Promise.all([
+          supplierService.getSupplierProducts(supplier.id),
+          supplierService.getSupplierOrders(supplier.id)
+        ]);
+        setProducts(productsData);
+        setRecentOrders(ordersData.slice(0, 5)); // Show last 5 orders
+      } catch (error) {
+        console.error('Error loading supplier data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [supplier.id]);
+
+  const handleCreateOrder = () => {
+    if (onCreateOrder) {
+      onCreateOrder(supplier.id);
+    }
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">{supplier.name}</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              {supplier.type === 'global' ? 'Global Supplier' : 'Restaurant Specific'}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab('info')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'info'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Information
+          </button>
+          <button
+            onClick={() => setActiveTab('products')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'products'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Products ({products.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('orders')}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'orders'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Recent Orders
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 overflow-y-auto max-h-[60vh]">
+          {activeTab === 'info' && (
+            <div className="space-y-6">
+              {/* Contact Information */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-3">
+                    <Mail className="w-5 h-5 text-gray-400" />
+                    <div>
+                      <p className="text-sm text-gray-500">Email</p>
+                      <p className="font-medium">{supplier.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Phone className="w-5 h-5 text-gray-400" />
+                    <div>
+                      <p className="text-sm text-gray-500">Phone</p>
+                      <p className="font-medium">{supplier.phone}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Address */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Address</h3>
+                <div className="flex items-start space-x-3">
+                  <MapPin className="w-5 h-5 text-gray-400 mt-1" />
+                  <div>
+                    <p className="font-medium">{supplier.address.line1}</p>
+                    {supplier.address.line2 && <p>{supplier.address.line2}</p>}
+                    <p>{supplier.address.city}, {supplier.address.state} {supplier.address.postalCode}</p>
+                    <p>{supplier.address.country}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Person */}
+              {supplier.contactPerson && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Person</h3>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="font-medium">{supplier.contactPerson.name}</p>
+                    {supplier.contactPerson.position && (
+                      <p className="text-sm text-gray-600">{supplier.contactPerson.position}</p>
+                    )}
+                    <div className="mt-2 space-y-1">
+                      <p className="text-sm">
+                        <Mail className="w-4 h-4 inline mr-2" />
+                        {supplier.contactPerson.email}
+                      </p>
+                      <p className="text-sm">
+                        <Phone className="w-4 h-4 inline mr-2" />
+                        {supplier.contactPerson.phone}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Terms */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Terms</h3>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Payment Method</p>
+                      <p className="font-medium capitalize">{supplier.paymentTerms.method.replace('_', ' ')}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Net Days</p>
+                      <p className="font-medium">{supplier.paymentTerms.daysNet} days</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Delivery Information */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Delivery Information</h3>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Minimum Order</p>
+                      <p className="font-medium">${supplier.deliveryInfo.minimumOrder}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Delivery Fee</p>
+                      <p className="font-medium">${supplier.deliveryInfo.deliveryFee}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Free Delivery Threshold</p>
+                      <p className="font-medium">${supplier.deliveryInfo.freeDeliveryThreshold}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Estimated Delivery</p>
+                      <p className="font-medium">{supplier.deliveryInfo.estimatedDeliveryDays} days</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'products' && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Products</h3>
+                <span className="text-sm text-gray-500">{products.length} items</span>
+              </div>
+              
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-gray-500 mt-2">Loading products...</p>
+                </div>
+              ) : products.length === 0 ? (
+                <div className="text-center py-8">
+                  <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">No products available</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {products.map((product) => (
+                    <div key={product.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">{product.name}</h4>
+                          <p className="text-sm text-gray-600 mt-1">{product.description}</p>
+                          <div className="flex items-center space-x-4 mt-2">
+                            <span className="text-sm text-gray-500">
+                              Category: {product.category}
+                            </span>
+                            {product.sku && (
+                              <span className="text-sm text-gray-500">
+                                SKU: {product.sku}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-gray-900">
+                            ${product.price.toFixed(2)}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            per {product.unit}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'orders' && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Recent Orders</h3>
+                <span className="text-sm text-gray-500">{recentOrders.length} orders</span>
+              </div>
+              
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-gray-500 mt-2">Loading orders...</p>
+                </div>
+              ) : recentOrders.length === 0 ? (
+                <div className="text-center py-8">
+                  <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">No recent orders</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recentOrders.map((order) => (
+                    <div key={order.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">{order.orderNumber}</h4>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {new Date(order.created_at).toLocaleDateString()}
+                          </p>
+                          <div className="flex items-center space-x-4 mt-2">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              order.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
+                              order.status === 'shipped' ? 'bg-purple-100 text-purple-800' :
+                              order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                            </span>
+                            <span className="text-sm text-gray-500">
+                              {order.items.length} items
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-gray-900">
+                            ${order.total.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <DollarSign className="w-4 h-4 text-gray-400" />
+              <span className="text-sm text-gray-600">
+                Payment: {supplier.paymentTerms.daysNet} days net
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Package className="w-4 h-4 text-gray-400" />
+              <span className="text-sm text-gray-600">
+                Min order: ${supplier.deliveryInfo.minimumOrder}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Close
+            </button>
+            {onCreateOrder && (
+              <button
+                onClick={handleCreateOrder}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create Order</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
