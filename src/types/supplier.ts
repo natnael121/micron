@@ -314,4 +314,10 @@ export interface SupplierOrderLocation {
   orderTotal: number;
   status: PurchaseOrder['status'];
   orderDate: string;
+  restaurantLocation?: {
+    name: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+  };
 }

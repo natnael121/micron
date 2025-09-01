@@ -31,21 +31,38 @@ export const SupplierMap: React.FC = () => {
     
     try {
       setLoading(true);
-      const orders = await firebaseService.getSupplierOrders(supplierUser.supplierId);
+      const [orders, restaurants] = await Promise.all([
+        firebaseService.getSupplierOrders(supplierUser.supplierId),
+        firebaseService.getAllUsers() // Get restaurant details for locations
+      ]);
       
-      // Convert orders to location data (mock coordinates for demo)
-      const locationData: SupplierOrderLocation[] = orders.map(order => ({
-        orderId: order.id,
-        restaurantName: `Restaurant #${order.restaurantId.slice(0, 8)}`,
-        address: order.deliveryAddress ? 
-          `${order.deliveryAddress.line1}, ${order.deliveryAddress.city}` :
-          'Address not provided',
-        latitude: 40.7128 + (Math.random() - 0.5) * 0.1, // Mock NYC area
-        longitude: -74.0060 + (Math.random() - 0.5) * 0.1,
-        orderTotal: order.total,
-        status: order.status,
-        orderDate: order.created_at,
-      }));
+      // Convert orders to location data with real restaurant information
+      const locationData: SupplierOrderLocation[] = orders.map(order => {
+        const restaurant = restaurants.find(r => r.id === order.restaurantId);
+        
+        return {
+          orderId: order.id,
+          restaurantName: restaurant?.businessName || restaurant?.name || `Restaurant #${order.restaurantId.slice(0, 8)}`,
+          address: order.deliveryAddress ? 
+            `${order.deliveryAddress.line1}, ${order.deliveryAddress.city}` :
+            restaurant?.address || 'Address not provided',
+          latitude: order.deliveryAddress?.latitude || 
+                   restaurant?.latitude || 
+                   40.7128 + (Math.random() - 0.5) * 0.1, // Fallback to NYC area
+          longitude: order.deliveryAddress?.longitude || 
+                    restaurant?.longitude || 
+                    -74.0060 + (Math.random() - 0.5) * 0.1,
+          orderTotal: order.total,
+          status: order.status,
+          orderDate: order.created_at,
+          restaurantLocation: restaurant ? {
+            name: restaurant.businessName || restaurant.name || 'Unknown Restaurant',
+            address: restaurant.address || 'Address not provided',
+            latitude: restaurant.latitude || 40.7128,
+            longitude: restaurant.longitude || -74.0060,
+          } : undefined,
+        };
+      });
       
       setLocations(locationData);
     } catch (error) {

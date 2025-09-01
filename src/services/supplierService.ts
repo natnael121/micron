@@ -219,6 +219,28 @@ class SupplierService {
   // Product Management
   // =======================
   
+  async getAllSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
+    try {
+      const q = query(
+        collection(db, 'supplierProducts'),
+        where('supplierId', '==', supplierId)
+      );
+      const snapshot = await getDocs(q);
+      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
+      
+      // Sort in memory to avoid composite index requirement
+      return products.sort((a, b) => {
+        if (a.category !== b.category) {
+          return a.category.localeCompare(b.category);
+        }
+        return a.name.localeCompare(b.name);
+      });
+    } catch (error) {
+      console.error('Error fetching all supplier products:', error);
+      throw error;
+    }
+  }
+
   async getSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
     try {
       const q = query(
