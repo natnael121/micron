@@ -422,7 +422,11 @@ export const TableTentPDFGenerator: React.FC<TableTentPDFGeneratorProps> = ({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div className="text-center">
                 <div className="text-2xl font-bold text-gray-800">{Object.keys(itemsByCategory).length}</div>
-                <div className="text-gray-600">Categories</div>
+                <div c
+                  
+                  
+                  
+        lassName="text-gray-600">Categories</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-gray-800">{totalItems}</div>
