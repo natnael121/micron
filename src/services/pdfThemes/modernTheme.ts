@@ -6,132 +6,159 @@ export const generateModernDesignPDF = async (
   menuItems: MenuItem[],
   categories: Category[]
 ): Promise<jsPDF> => {
-  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
 
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 15;
-  const itemBoxWidth = (pageWidth - margin * 2) / 2;
-  const itemBoxHeight = (pageHeight - 100) / 2;
 
-  const loadImageAsBase64 = async (imageUrl: string): Promise<string> => {
-    try {
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    } catch (error) {
-      console.error('Error loading image:', error);
-      return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+  const margin = 15;
+  const columnGap = 10;
+  const colWidth = (pageWidth - margin * 2 - columnGap) / 2;
+  const headerHeight = 10;
+  const lineHeight = 6;
+
+  let currentX = margin;
+  let currentY = margin + 10;
+
+  // === Helper: start new column or page ===
+  const moveToNextColumn = () => {
+    if (currentX === margin) {
+      // Move to right column
+      currentX = margin + colWidth + columnGap;
+      currentY = margin + 10;
+    } else {
+      // Add new page
+      pdf.addPage();
+      addBackground();
+      currentX = margin;
+      currentY = margin + 10;
     }
   };
 
-  const addPageHeader = () => {
-    pdf.setFillColor(245, 245, 245);
+  // === Beige background ===
+  const addBackground = () => {
+    pdf.setFillColor(245, 234, 212); // beige
     pdf.rect(0, 0, pageWidth, pageHeight, 'F');
-    pdf.setTextColor(0, 0, 0);
-    pdf.setFontSize(32);
-    pdf.setFont('helvetica', 'bolditalic');
-    const businessName = businessInfo.businessName || 'Borcelle';
-    const businessNameWidth = pdf.getTextWidth(businessName);
-    pdf.text(businessName, (pageWidth - businessNameWidth) / 2, 25);
+  };
 
-    const bannerY = 35;
-    const bannerHeight = 12;
-    const bannerWidth = 80;
-    const bannerX = (pageWidth - bannerWidth) / 2;
+  // === Category Header ===
+  const addCategoryHeader = (name: string) => {
+    if (currentY + headerHeight > pageHeight - 20) moveToNextColumn();
+
     pdf.setFillColor(0, 0, 0);
-    pdf.rect(bannerX, bannerY, bannerWidth, bannerHeight, 'F');
+    pdf.rect(currentX, currentY, colWidth, headerHeight, 'F');
     pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('FOOD MENU', pageWidth / 2, bannerY + 8, { align: 'center' });
-  };
-
-  const addFooter = () => {
-    const phone = businessInfo.aboutUs?.phone || businessInfo.phone || '+123-456-7890';
-    const website = businessInfo.aboutUs?.website || 'WWW.REALLYGREATSITE.COM';
-    pdf.setFontSize(10);
-    pdf.setTextColor(0, 0, 0);
-    pdf.text('Delivery order', margin, pageHeight - 20);
-    pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(12);
-    pdf.text(phone, margin, pageHeight - 14);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(10);
-    pdf.text(website, pageWidth - margin, pageHeight - 14, { align: 'right' });
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(name.toUpperCase(), currentX + 2, currentY + 7);
+
+    currentY += headerHeight + 3;
   };
 
-  // Group items by categories
+  // === Menu Item ===
+  const addMenuItem = (item: MenuItem) => {
+    const itemHeight = lineHeight * 2 + 4;
+    if (currentY + itemHeight > pageHeight - 20) moveToNextColumn();
+
+    // Name + price with dotted leader
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(0, 0, 0);
+    const nameWidth = pdf.getTextWidth(item.name);
+
+    const priceText = `${item.price.toFixed(0)}`;
+    const priceWidth = pdf.getTextWidth(priceText);
+
+    const startX = currentX + 2;
+    const endX = currentX + colWidth - 2;
+    const dotsStart = startX + nameWidth + 2;
+    const dotsEnd = endX - priceWidth - 2;
+
+    // Item name
+    pdf.text(item.name, startX, currentY);
+
+    // Dotted leader
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    let dots = '';
+    while (pdf.getTextWidth(dots) < dotsEnd - dotsStart) {
+      dots += '.';
+    }
+    pdf.text(dots, dotsStart, currentY);
+
+    // Price
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(priceText, endX, currentY, { align: 'right' });
+
+    // Description
+    if (item.description) {
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(80, 80, 80);
+      const desc = item.description.length > 60 ? item.description.substring(0, 57) + '...' : item.description;
+      pdf.text(desc, startX, currentY + 5);
+    }
+
+    currentY += itemHeight;
+  };
+
+  // === Footer ===
+  const addFooter = () => {
+    const footerY = pageHeight - 10;
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(0, 0, 0);
+
+    const phone = businessInfo.aboutUs?.phone || businessInfo.phone || '+123-456-7890';
+    const website = businessInfo.aboutUs?.website || 'www.webpage.com';
+
+    pdf.text(`Delivery order: ${phone}`, margin, footerY);
+    pdf.text(website, pageWidth - margin, footerY, { align: 'right' });
+  };
+
+  // === Start ===
+  addBackground();
+
+  // Title block
+  pdf.setFillColor(0, 0, 0);
+  pdf.rect(margin, margin, colWidth, 20, 'F');
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(16);
+  pdf.text('MENU', margin + colWidth / 2, margin + 13, { align: 'center' });
+
+  currentY = margin + 30;
+
+  // Group items by category
   const itemsByCategory = categories.reduce((acc, category) => {
-    const categoryItems = menuItems.filter(item => item.category === category.name && item.available);
+    const categoryItems = menuItems.filter(
+      (item) => item.category === category.name && item.available
+    );
     if (categoryItems.length > 0) {
       acc[category.name] = categoryItems.sort((a, b) => a.name.localeCompare(b.name));
     }
     return acc;
   }, {} as Record<string, MenuItem[]>);
 
-  const uncategorizedItems = menuItems.filter(item => item.available && !categories.some(cat => cat.name === item.category));
+  const uncategorizedItems = menuItems.filter(
+    (item) => item.available && !categories.some((cat) => cat.name === item.category)
+  );
   if (uncategorizedItems.length > 0) {
     itemsByCategory['Other Items'] = uncategorizedItems.sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  const allItems = Object.values(itemsByCategory).flat();
-
-  for (let i = 0; i < allItems.length; i++) {
-    if (i % 4 === 0) {
-      if (i > 0) pdf.addPage();
-      addPageHeader();
-    }
-
-    const item = allItems[i];
-    const gridX = i % 2; // column
-    const gridY = Math.floor((i % 4) / 2); // row
-    const boxX = margin + gridX * itemBoxWidth;
-    const boxY = 60 + gridY * itemBoxHeight;
-    const imageSize = 50;
-    const imageCenterX = boxX + itemBoxWidth / 2;
-    const imageY = boxY + 10;
-
-    try {
-      if (item.photo) {
-        const base64 = await loadImageAsBase64(item.photo);
-        pdf.setFillColor(255, 255, 255);
-        pdf.circle(imageCenterX, imageY + imageSize / 2, imageSize / 2, 'F');
-        pdf.addImage(base64, 'JPEG', imageCenterX - imageSize / 2, imageY, imageSize, imageSize);
-      } else {
-        pdf.setFillColor(240, 240, 240);
-        pdf.circle(imageCenterX, imageY + imageSize / 2, imageSize / 2, 'F');
-        pdf.setTextColor(150, 150, 150);
-        pdf.setFontSize(10);
-        pdf.text('No Image', imageCenterX, imageY + imageSize / 2, { align: 'center' });
-      }
-    } catch (error) {
-      console.error('Error adding image:', error);
-    }
-
-    pdf.setTextColor(0, 0, 0);
-    pdf.setFontSize(14);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(item.name, imageCenterX, imageY + imageSize + 10, { align: 'center' });
-
-    pdf.setFontSize(10);
-    pdf.setTextColor(100, 100, 100);
-    const desc = item.description.length > 50 ? item.description.slice(0, 47) + '...' : item.description;
-    pdf.text(desc, imageCenterX, imageY + imageSize + 16, { align: 'center' });
-
-    pdf.setFillColor(0, 0, 0);
-    pdf.circle(imageCenterX, imageY + imageSize + 30, 10, 'F');
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(`$${item.price.toFixed(0)}`, imageCenterX, imageY + imageSize + 33, { align: 'center' });
+  // Render categories + items
+  for (const [catName, items] of Object.entries(itemsByCategory)) {
+    addCategoryHeader(catName);
+    items.forEach((item) => addMenuItem(item));
   }
 
   addFooter();
+
   return pdf;
 };
