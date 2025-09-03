@@ -1,7 +1,8 @@
+// src/services/pdfThemes/classicTheme.ts
 import jsPDF from 'jspdf';
 import { MenuItem, Category, User } from '../../types';
 
-export const generateElegantMenuPDF = async (
+export const generateClassicDesignPDF = async (
   businessInfo: User,
   menuItems: MenuItem[],
   categories: Category[]
@@ -9,7 +10,7 @@ export const generateElegantMenuPDF = async (
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
-    format: 'a4'
+    format: 'a4',
   });
 
   const pageWidth = pdf.internal.pageSize.getWidth();
@@ -20,10 +21,15 @@ export const generateElegantMenuPDF = async (
   const colWidth = (pageWidth - margin * 2 - columnGap) / 2;
   const lineHeight = 6;
 
-  // === Background ===
+  // === Background for every page ===
   const addBackground = () => {
     pdf.setFillColor(252, 248, 240); // light beige
     pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+  };
+
+  const addPageWithBackground = () => {
+    pdf.addPage();
+    addBackground();
   };
 
   // === Cover Page ===
@@ -47,7 +53,7 @@ export const generateElegantMenuPDF = async (
     pdf.setFont('helvetica', 'normal');
     pdf.text(name.toUpperCase(), pageWidth / 2, pageHeight / 2 + 10, { align: 'center' });
 
-    pdf.addPage();
+    addPageWithBackground();
   };
 
   // === Category Box ===
@@ -67,11 +73,9 @@ export const generateElegantMenuPDF = async (
     let currentY = y + 12;
 
     items.forEach((item) => {
-      // Wrap description if needed
       const itemHeight = lineHeight + 3;
       if (currentY + itemHeight > pageHeight - margin) {
-        pdf.addPage();
-        addBackground();
+        addPageWithBackground();
         currentY = margin + 12;
       }
 
@@ -124,9 +128,8 @@ export const generateElegantMenuPDF = async (
     pdf.text(website, pageWidth - margin, footerY, { align: 'right' });
   };
 
-  // === Start ===
+  // === Start PDF generation ===
   addCoverPage();
-  addBackground();
 
   let currentX = margin;
   let currentY = margin;
@@ -150,13 +153,11 @@ export const generateElegantMenuPDF = async (
 
   for (const [catName, items] of Object.entries(itemsByCategory)) {
     if (currentY > pageHeight - margin - 40) {
-      // Move to next column
       if (currentX === margin) {
         currentX = margin + colWidth + columnGap;
         currentY = margin;
       } else {
-        pdf.addPage();
-        addBackground();
+        addPageWithBackground();
         currentX = margin;
         currentY = margin;
       }
