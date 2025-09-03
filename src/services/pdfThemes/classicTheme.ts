@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import { MenuItem, Category, User } from '../../types';
 
-export const generateClassicDesignPDF = async (
+export const generateElegantMenuPDF = async (
   businessInfo: User,
   menuItems: MenuItem[],
   categories: Category[]
@@ -14,39 +14,126 @@ export const generateClassicDesignPDF = async (
 
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 20;
-  const contentWidth = pageWidth - (margin * 2);
-  
+
+  const margin = 15;
+  const columnGap = 10;
+  const colWidth = (pageWidth - margin * 2 - columnGap) / 2;
+  const lineHeight = 6;
+
+  // === Background ===
+  const addBackground = () => {
+    pdf.setFillColor(252, 248, 240); // light beige
+    pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+  };
+
+  // === Cover Page ===
+  const addCoverPage = () => {
+    addBackground();
+
+    // Border
+    pdf.setDrawColor(180, 180, 180);
+    pdf.setLineWidth(0.5);
+    pdf.rect(margin, margin, pageWidth - margin * 2, pageHeight - margin * 2);
+
+    // Title
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(36);
+    pdf.setTextColor(0, 0, 0);
+    pdf.text('MENU', pageWidth / 2, pageHeight / 2 - 10, { align: 'center' });
+
+    // Restaurant name
+    const name = businessInfo.businessName || 'RESTAURANT';
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(name.toUpperCase(), pageWidth / 2, pageHeight / 2 + 10, { align: 'center' });
+
+    pdf.addPage();
+  };
+
+  // === Category Box ===
+  const addCategoryBox = (x: number, y: number, width: number, title: string, items: MenuItem[]): number => {
+    const startY = y;
+
+    // Header
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(0, 0, 0);
+    pdf.text(title.toUpperCase(), x + 2, y + 5);
+
+    pdf.setDrawColor(0, 0, 0);
+    pdf.setLineWidth(0.3);
+    pdf.line(x, y + 7, x + width, y + 7);
+
+    let currentY = y + 12;
+
+    items.forEach((item) => {
+      // Wrap description if needed
+      const itemHeight = lineHeight + 3;
+      if (currentY + itemHeight > pageHeight - margin) {
+        pdf.addPage();
+        addBackground();
+        currentY = margin + 12;
+      }
+
+      const itemName = item.name;
+      const priceText = `${item.price.toFixed(2)}`;
+      const startX = x + 2;
+      const endX = x + width - 2;
+
+      // Item name
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(itemName, startX, currentY);
+
+      // Dotted leader
+      pdf.setFontSize(8);
+      let dots = '';
+      while (pdf.getTextWidth(dots) < endX - startX - pdf.getTextWidth(itemName) - pdf.getTextWidth(priceText) - 4) {
+        dots += '.';
+      }
+      pdf.text(dots, startX + pdf.getTextWidth(itemName) + 2, currentY);
+
+      // Price
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(priceText, endX, currentY, { align: 'right' });
+
+      currentY += lineHeight;
+    });
+
+    // Box border
+    pdf.setDrawColor(180, 180, 180);
+    pdf.setLineWidth(0.5);
+    pdf.rect(x, startY, width, currentY - startY + 3);
+
+    return currentY + 8;
+  };
+
+  // === Footer ===
+  const addFooter = () => {
+    const footerY = pageHeight - 10;
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 100, 100);
+
+    const phone = businessInfo.aboutUs?.phone || businessInfo.phone || '+123-456-7890';
+    const website = businessInfo.aboutUs?.website || 'www.restaurant.com';
+
+    pdf.text(`Delivery order: ${phone}`, margin, footerY);
+    pdf.text(website, pageWidth - margin, footerY, { align: 'right' });
+  };
+
+  // === Start ===
+  addCoverPage();
+  addBackground();
+
+  let currentX = margin;
   let currentY = margin;
 
-  // Header
-  pdf.setFillColor(248, 250, 252);
-  pdf.rect(0, 0, pageWidth, 50, 'F');
-  
-  // Business name
-  pdf.setTextColor(31, 41, 55);
-  pdf.setFontSize(28);
-  pdf.setFont('helvetica', 'bold');
-  const businessName = businessInfo.businessName || 'Restaurant';
-  pdf.text(businessName, pageWidth / 2, 25, { align: 'center' });
-  
-  // Subtitle
-  pdf.setFontSize(14);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(107, 114, 128);
-  pdf.text('MENU', pageWidth / 2, 35, { align: 'center' });
-  
-  // Decorative line
-  pdf.setDrawColor(34, 197, 94);
-  pdf.setLineWidth(2);
-  pdf.line(margin, 45, pageWidth - margin, 45);
-  
-  currentY = 65;
-
-  // Group items by category
   const itemsByCategory = categories.reduce((acc, category) => {
-    const categoryItems = menuItems.filter(item => 
-      item.category === category.name && item.available
+    const categoryItems = menuItems.filter(
+      (item) => item.category === category.name && item.available
     );
     if (categoryItems.length > 0) {
       acc[category.name] = categoryItems.sort((a, b) => a.name.localeCompare(b.name));
@@ -54,94 +141,31 @@ export const generateClassicDesignPDF = async (
     return acc;
   }, {} as Record<string, MenuItem[]>);
 
-  const uncategorizedItems = menuItems.filter(item => 
-    item.available && !categories.some(cat => cat.name === item.category)
+  const uncategorizedItems = menuItems.filter(
+    (item) => item.available && !categories.some((cat) => cat.name === item.category)
   );
   if (uncategorizedItems.length > 0) {
     itemsByCategory['Other Items'] = uncategorizedItems.sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  // Render categories and items
-  for (const [categoryName, items] of Object.entries(itemsByCategory)) {
-    // Check space for category header
-    if (currentY + 30 > pageHeight - 30) {
-      pdf.addPage();
-      currentY = margin;
-    }
-
-    // Category header
-    pdf.setFillColor(34, 197, 94);
-    pdf.rect(margin, currentY, contentWidth, 15, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(16);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(categoryName.toUpperCase(), margin + 10, currentY + 10);
-    
-    currentY += 25;
-
-    // Category items
-    for (const item of items) {
-      if (currentY + 25 > pageHeight - 30) {
+  for (const [catName, items] of Object.entries(itemsByCategory)) {
+    if (currentY > pageHeight - margin - 40) {
+      // Move to next column
+      if (currentX === margin) {
+        currentX = margin + colWidth + columnGap;
+        currentY = margin;
+      } else {
         pdf.addPage();
+        addBackground();
+        currentX = margin;
         currentY = margin;
       }
-
-      // Item name and price
-      pdf.setTextColor(31, 41, 55);
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
-      
-      const itemName = item.name.length > 35 ? item.name.substring(0, 32) + '...' : item.name;
-      pdf.text(itemName, margin, currentY);
-      
-      // Price
-      const priceText = `$${item.price.toFixed(2)}`;
-      const priceWidth = pdf.getTextWidth(priceText);
-      pdf.text(priceText, pageWidth - margin - priceWidth, currentY);
-      
-      // Dotted line between name and price
-      pdf.setDrawColor(200, 200, 200);
-      pdf.setLineWidth(0.5);
-      const nameWidth = pdf.getTextWidth(itemName);
-      const dotsStart = margin + nameWidth + 5;
-      const dotsEnd = pageWidth - margin - priceWidth - 5;
-      
-      for (let x = dotsStart; x < dotsEnd; x += 3) {
-        pdf.circle(x, currentY - 2, 0.3, 'F');
-      }
-      
-      currentY += 8;
-
-      // Description
-      pdf.setTextColor(107, 114, 128);
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      
-      const description = item.description.length > 80 ? 
-        item.description.substring(0, 77) + '...' : item.description;
-      
-      const descLines = pdf.splitTextToSize(description, contentWidth - 20);
-      pdf.text(descLines.slice(0, 2), margin + 5, currentY);
-      
-      currentY += descLines.length * 4 + 8;
     }
-    
-    currentY += 10; // Space between categories
+
+    currentY = addCategoryBox(currentX, currentY, colWidth, catName, items);
   }
 
-  // Footer
-  currentY = pageHeight - 20;
-  
-  pdf.setTextColor(107, 114, 128);
-  pdf.setFontSize(10);
-  pdf.setFont('helvetica', 'normal');
-  
-  const phone = businessInfo.aboutUs?.phone || businessInfo.phone || '+123-456-7890';
-  pdf.text(`Phone: ${phone}`, margin, currentY);
-  
-  const website = businessInfo.aboutUs?.website || 'www.restaurant.com';
-  pdf.text(website, pageWidth - margin, currentY, { align: 'right' });
-  
+  addFooter();
+
   return pdf;
 };
