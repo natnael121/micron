@@ -49,7 +49,7 @@ export const TableTentPDFGenerator: React.FC<TableTentPDFGeneratorProps> = ({
 
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 20;
+    const margin = 15;
     const contentWidth = pageWidth - (margin * 2);
     
     let currentY = margin;
@@ -65,28 +65,46 @@ export const TableTentPDFGenerator: React.FC<TableTentPDFGeneratorProps> = ({
 
     // Helper function to check if we need a new page
     const checkPageSpace = (requiredSpace: number) => {
-      if (currentY + requiredSpace > pageHeight - 20) {
+      if (currentY + requiredSpace > pageHeight - 30) {
         addNewPage();
         return true;
       }
       return false;
     };
 
-    // Add page header
+    // Add page header with business name and "FOOD MENU"
     const addPageHeader = () => {
-      // Business name header
-      pdf.setFillColor(255, 255, 255);
-      pdf.rect(0, 0, pageWidth, 30, 'F');
+      // Light gray background
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(0, 0, pageWidth, pageHeight, 'F');
       
-      // Business name
+      // Business name in script font style
       pdf.setTextColor(0, 0, 0);
-      pdf.setFontSize(28);
-      pdf.setFont('helvetica', 'bold');
-      const businessName = businessInfo.businessName || 'MESSINA BAKERY & CAFE';
+      pdf.setFontSize(32);
+      pdf.setFont('helvetica', 'bolditalic');
+      const businessName = businessInfo.businessName || 'Borcelle';
       const businessNameWidth = pdf.getTextWidth(businessName);
-      pdf.text(businessName, (pageWidth - businessNameWidth) / 2, 20);
+      pdf.text(businessName, (pageWidth - businessNameWidth) / 2, 25);
       
-      currentY = 40;
+      // "FOOD MENU" banner
+      const bannerY = 35;
+      const bannerHeight = 12;
+      const bannerWidth = 80;
+      const bannerX = (pageWidth - bannerWidth) / 2;
+      
+      // Black banner background
+      pdf.setFillColor(0, 0, 0);
+      pdf.rect(bannerX, bannerY, bannerWidth, bannerHeight, 'F');
+      
+      // White text on banner
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      const menuText = 'FOOD MENU';
+      const menuTextWidth = pdf.getTextWidth(menuText);
+      pdf.text(menuText, (pageWidth - menuTextWidth) / 2, bannerY + 8);
+      
+      currentY = 60;
     };
 
     // Add first page header
@@ -111,118 +129,179 @@ export const TableTentPDFGenerator: React.FC<TableTentPDFGeneratorProps> = ({
       itemsByCategory['Other Items'] = uncategorizedItems.sort((a, b) => a.name.localeCompare(b.name));
     }
 
-    // Render categories and items
-    for (const [categoryName, items] of Object.entries(itemsByCategory)) {
-      // Check space for category header
-      checkPageSpace(20);
+    // Render items in the new design style
+    const allItems = Object.values(itemsByCategory).flat();
+    
+    for (let i = 0; i < allItems.length; i++) {
+      const item = allItems[i];
       
-      // Category header
+      // Calculate required space for this item (image + text)
+      const itemHeight = 85;
+      
+      checkPageSpace(itemHeight);
+      
+      // Determine layout (alternating left/right)
+      const isLeft = i % 2 === 0;
+      const imageSize = 70;
+      const imageX = isLeft ? margin : pageWidth - margin - imageSize;
+      const textX = isLeft ? margin + imageSize + 10 : margin;
+      const textWidth = contentWidth - imageSize - 10;
+      
+      try {
+        // Load and add food image
+        if (item.photo) {
+          const imageBase64 = await loadImageAsBase64(item.photo);
+          
+          // Add circular mask effect by drawing a white circle background
+          pdf.setFillColor(255, 255, 255);
+          pdf.circle(imageX + imageSize/2, currentY + imageSize/2, imageSize/2, 'F');
+          
+          // Add the image
+          pdf.addImage(imageBase64, 'JPEG', imageX, currentY, imageSize, imageSize);
+        } else {
+          // Placeholder circle if no image
+          pdf.setFillColor(240, 240, 240);
+          pdf.circle(imageX + imageSize/2, currentY + imageSize/2, imageSize/2, 'F');
+          
+          // Add placeholder text
+          pdf.setTextColor(150, 150, 150);
+          pdf.setFontSize(10);
+          pdf.setFont('helvetica', 'normal');
+          pdf.text('No Image', imageX + imageSize/2, currentY + imageSize/2, { align: 'center' });
+        }
+      } catch (error) {
+        console.error('Error adding image:', error);
+        // Fallback placeholder
+        pdf.setFillColor(240, 240, 240);
+        pdf.circle(imageX + imageSize/2, currentY + imageSize/2, imageSize/2, 'F');
+      }
+      
+      // Item name in large, bold text
       pdf.setTextColor(0, 0, 0);
       pdf.setFontSize(18);
       pdf.setFont('helvetica', 'bold');
       
-      // Draw a line above category
+      const itemNameY = currentY + 20;
+      const maxNameWidth = textWidth - 20;
+      
+      // Split long names into multiple lines
+      const words = item.name.split(' ');
+      let lines = [];
+      let currentLine = '';
+      
+      for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        const testWidth = pdf.getTextWidth(testLine);
+        
+        if (testWidth <= maxNameWidth) {
+          currentLine = testLine;
+        } else {
+          if (currentLine) lines.push(currentLine);
+          currentLine = word;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+      
+      // Limit to 2 lines
+      lines = lines.slice(0, 2);
+      
+      lines.forEach((line, lineIndex) => {
+        if (isLeft) {
+          pdf.text(line, textX, itemNameY + (lineIndex * 8));
+        } else {
+          pdf.text(line, textX + textWidth, itemNameY + (lineIndex * 8), { align: 'right' });
+        }
+      });
+      
+      // Description
+      pdf.setTextColor(100, 100, 100);
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      
+      const descriptionY = itemNameY + (lines.length * 8) + 5;
+      const description = item.description.length > 80 ? 
+        item.description.substring(0, 77) + '...' : item.description;
+      
+      // Split description into lines
+      const descWords = description.split(' ');
+      let descLines = [];
+      let currentDescLine = '';
+      
+      for (const word of descWords) {
+        const testLine = currentDescLine ? `${currentDescLine} ${word}` : word;
+        const testWidth = pdf.getTextWidth(testLine);
+        
+        if (testWidth <= maxNameWidth) {
+          currentDescLine = testLine;
+        } else {
+          if (currentDescLine) descLines.push(currentDescLine);
+          currentDescLine = word;
+        }
+      }
+      if (currentDescLine) descLines.push(currentDescLine);
+      
+      // Limit to 2 lines
+      descLines = descLines.slice(0, 2);
+      
+      descLines.forEach((line, lineIndex) => {
+        if (isLeft) {
+          pdf.text(line, textX, descriptionY + (lineIndex * 4));
+        } else {
+          pdf.text(line, textX + textWidth, descriptionY + (lineIndex * 4), { align: 'right' });
+        }
+      });
+      
+      // Price in circular badge
+      const priceY = currentY + imageSize - 15;
+      const priceX = isLeft ? textX + textWidth - 25 : textX + 25;
+      
+      // Black circle for price
+      pdf.setFillColor(0, 0, 0);
+      pdf.circle(priceX, priceY, 12, 'F');
+      
+      // White price text
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      const priceText = `$${item.price.toFixed(0)}`;
+      pdf.text(priceText, priceX, priceY + 2, { align: 'center' });
+      
+      // Decorative line under item
+      const lineY = currentY + itemHeight - 5;
       pdf.setDrawColor(200, 200, 200);
       pdf.setLineWidth(0.5);
-      pdf.line(margin, currentY - 5, pageWidth - margin, currentY - 5);
       
-      const category = categories.find(c => c.name === categoryName);
-      pdf.text(categoryName.toUpperCase(), margin, currentY);
-      
-      currentY += 10;
-      
-      // Items in this category
-      for (const item of items) {
-        // Calculate required space for this item
-        const itemHeight = 15;
-        
-        checkPageSpace(itemHeight);
-        
-        // Item name
-        pdf.setTextColor(0, 0, 0);
-        pdf.setFontSize(12);
-        pdf.setFont('helvetica', 'normal');
-        
-        const itemName = item.name;
-        pdf.text(itemName, margin, currentY);
-        
-        // Dotted line
-        const itemNameWidth = pdf.getTextWidth(itemName);
-        const dottedLineStart = margin + itemNameWidth + 5;
-        const dottedLineEnd = pageWidth - margin - 40;
-        
-        if (dottedLineStart < dottedLineEnd) {
-          // Draw dotted line
-          pdf.setLineWidth(0.3);
-          pdf.setDrawColor(180, 180, 180);
-          let dotPosition = dottedLineStart;
-          while (dotPosition < dottedLineEnd) {
-            pdf.line(dotPosition, currentY - 2, dotPosition + 1, currentY - 2);
-            dotPosition += 3;
-          }
-        }
-        
-        // Price (right-aligned)
-        const price = `$${item.price.toFixed(2)}`;
-        pdf.setFontSize(12);
-        pdf.setFont('helvetica', 'normal');
-        pdf.text(price, pageWidth - margin, currentY, { align: 'right' });
-        
-        // Description (if it fits)
-        if (item.description) {
-          const descriptionY = currentY + 5;
-          if (descriptionY < pageHeight - 20) {
-            pdf.setTextColor(100, 100, 100);
-            pdf.setFontSize(9);
-            pdf.setFont('helvetica', 'italic');
-            
-            const description = item.description.length > 60 ? 
-              item.description.substring(0, 57) + '...' : item.description;
-            
-            pdf.text(description, margin, descriptionY);
-            currentY += 8;
-          }
-        } else {
-          currentY += 5;
-        }
-        
-        currentY += 10;
+      if (isLeft) {
+        pdf.line(textX, lineY, textX + textWidth - 30, lineY);
+      } else {
+        pdf.line(textX + 30, lineY, textX + textWidth, lineY);
       }
       
-      // Extra space after category
-      currentY += 5;
+      currentY += itemHeight + 10;
     }
 
     // Footer on last page
-    currentY = pageHeight - 30;
+    currentY = pageHeight - 25;
     
     // Footer content
     pdf.setTextColor(0, 0, 0);
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'normal');
     
-    // Draw a line above footer
-    pdf.setDrawColor(200, 200, 200);
-    pdf.setLineWidth(0.5);
-    pdf.line(margin, currentY, pageWidth - margin, currentY);
-    currentY += 10;
+    // Delivery order section
+    pdf.text('Delivery order', margin, currentY);
     
-    // Contact info
-    if (businessInfo.aboutUs?.phone || businessInfo.phone) {
-      pdf.text(`📞 ${businessInfo.aboutUs?.phone || businessInfo.phone}`, margin, currentY);
-    }
+    // Phone number
+    const phone = businessInfo.aboutUs?.phone || businessInfo.phone || '+123-456-7890';
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(phone, margin, currentY + 6);
     
-    if (businessInfo.aboutUs?.address || businessInfo.address) {
-      const address = businessInfo.aboutUs?.address || businessInfo.address || '';
-      pdf.text(`📍 ${address}`, margin, currentY + 5);
-    }
-    
-    // Website and social media
-    pdf.setTextColor(100, 100, 100);
-    pdf.setFontSize(9);
-    pdf.text('MESSINABAKERY.COM', pageWidth - margin, currentY, { align: 'right' });
-    pdf.text('@MESSINABAKERY', pageWidth - margin, currentY + 5, { align: 'right' });
-    pdf.text('HELLO@MESSINABAKERY.COM', pageWidth - margin, currentY + 10, { align: 'right' });
+    // Website (right aligned)
+    const website = businessInfo.aboutUs?.website || 'WWW.REALLYGREATSITE.COM';
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(website, pageWidth - margin, currentY + 3, { align: 'right' });
     
     return pdf;
   };
@@ -237,7 +316,7 @@ export const TableTentPDFGenerator: React.FC<TableTentPDFGeneratorProps> = ({
     
     try {
       const pdf = await generatePrintMenuPDF();
-      const fileName = `${businessInfo.businessName?.toLowerCase().replace(/\s+/g, '-') || 'messina-menu'}.pdf`;
+      const fileName = `${businessInfo.businessName?.toLowerCase().replace(/\s+/g, '-') || 'restaurant-menu'}.pdf`;
       pdf.save(fileName);
     } catch (error) {
       console.error('Error generating print menu:', error);
@@ -296,47 +375,44 @@ export const TableTentPDFGenerator: React.FC<TableTentPDFGeneratorProps> = ({
               <X className="w-6 h-6" />
             </button>
           </div>
-          <p className="text-gray-600 mt-2">Generate a clean, professional menu for printing</p>
+          <p className="text-gray-600 mt-2">Generate a beautiful, modern menu design for printing</p>
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Preview Section */}
-          <div className="bg-gray-100 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Menu Preview</h3>
-            <div className="bg-white border border-gray-300 rounded-lg p-6">
-              {/* Header Preview */}
+          {/* Design Preview */}
+          <div className="bg-gray-100 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Design Preview</h3>
+            <div className="bg-white border border-gray-300 rounded-lg p-6 relative overflow-hidden">
+              {/* Mock design preview */}
               <div className="text-center mb-6">
-                <div className="font-bold text-2xl text-gray-900 uppercase tracking-wide">
-                  {businessInfo.businessName || 'MESSINA BAKERY & CAFE'}
+                <div className="font-bold text-2xl text-gray-900 italic tracking-wide mb-2">
+                  {businessInfo.businessName || 'Restaurant Name'}
+                </div>
+                <div className="inline-block bg-black text-white px-6 py-2 font-bold text-sm tracking-wider">
+                  FOOD MENU
                 </div>
               </div>
 
-              {/* Sample Category Preview */}
-              {Object.entries(itemsByCategory).slice(0, 2).map(([categoryName, items]) => (
-                <div key={categoryName} className="mb-6">
-                  <div className="border-t border-gray-300 pt-4 mb-3">
-                    <div className="font-bold text-gray-900 uppercase text-lg">
-                      {categoryName}
-                    </div>
-                  </div>
-                  {items.slice(0, 2).map(item => (
-                    <div key={item.id} className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">{item.name}</div>
-                        {item.description && (
-                          <div className="text-sm text-gray-600 italic mt-1">
-                            {item.description.substring(0, 50)}...
-                          </div>
-                        )}
-                      </div>
-                      <div className="font-medium text-gray-900 ml-4">${item.price.toFixed(2)}</div>
-                    </div>
-                  ))}
-                  {items.length > 2 && (
-                    <div className="text-xs text-gray-500">+{items.length - 2} more items</div>
-                  )}
+              {/* Sample item layout */}
+              <div className="flex items-center space-x-4 mb-6">
+                <div className="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center">
+                  <span className="text-gray-500 text-xs">IMAGE</span>
                 </div>
-              ))}
+                <div className="flex-1">
+                  <h4 className="font-bold text-lg text-gray-900 mb-1">SAMPLE DISH</h4>
+                  <p className="text-gray-600 text-sm">Delicious description of the menu item</p>
+                  <div className="w-24 h-0.5 bg-gray-300 mt-2"></div>
+                </div>
+                <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">$12</span>
+                </div>
+              </div>
+
+              <div className="text-center text-xs text-gray-500 mt-8">
+                <p>Delivery order</p>
+                <p className="font-bold">+123-456-7890</p>
+                <p className="mt-1">WWW.YOURRESTAURANT.COM</p>
+              </div>
             </div>
           </div>
 
@@ -374,29 +450,37 @@ export const TableTentPDFGenerator: React.FC<TableTentPDFGeneratorProps> = ({
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 bg-gray-800 rounded-full"></div>
-                  <span className="text-gray-700">Clean, professional layout</span>
+                  <span className="text-gray-700">Modern, elegant layout inspired by your reference</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 bg-gray-800 rounded-full"></div>
-                  <span className="text-gray-700">Category organization</span>
+                  <span className="text-gray-700">Large, circular food images</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 bg-gray-800 rounded-full"></div>
-                  <span className="text-gray-700">Dotted line separators</span>
+                  <span className="text-gray-700">Alternating left/right layout</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-gray-800 rounded-full"></div>
+                  <span className="text-gray-700">Stylish script business name</span>
                 </div>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 bg-gray-800 rounded-full"></div>
-                  <span className="text-gray-700">Automatic pagination</span>
+                  <span className="text-gray-700">Black banner with "FOOD MENU"</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 bg-gray-800 rounded-full"></div>
-                  <span className="text-gray-700">Item descriptions</span>
+                  <span className="text-gray-700">Circular price badges</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 bg-gray-800 rounded-full"></div>
-                  <span className="text-gray-700">Print-ready A4 format</span>
+                  <span className="text-gray-700">Clean typography and spacing</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-gray-800 rounded-full"></div>
+                  <span className="text-gray-700">Professional footer with contact info</span>
                 </div>
               </div>
             </div>
@@ -411,16 +495,16 @@ export const TableTentPDFGenerator: React.FC<TableTentPDFGeneratorProps> = ({
                 <span className="text-sm font-medium text-gray-900">A4 Portrait (210×297mm)</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Color scheme:</span>
-                <span className="text-sm font-medium text-gray-900">Black & White</span>
+                <span className="text-sm text-gray-700">Design style:</span>
+                <span className="text-sm font-medium text-gray-900">Modern restaurant menu</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-700">Layout:</span>
-                <span className="text-sm font-medium text-gray-900">Clean, professional</span>
+                <span className="text-sm font-medium text-gray-900">Alternating image placement</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Pagination:</span>
-                <span className="text-sm font-medium text-gray-900">Automatic page breaks</span>
+                <span className="text-sm text-gray-700">Images:</span>
+                <span className="text-sm font-medium text-gray-900">High-quality food photos</span>
               </div>
             </div>
           </div>
@@ -448,20 +532,21 @@ export const TableTentPDFGenerator: React.FC<TableTentPDFGeneratorProps> = ({
               >
                 <Download className="w-4 h-4" />
                 <span>
-                  {generating ? 'Generating...' : 'Download Print Menu'}
+                  {generating ? 'Generating...' : 'Download Beautiful Menu'}
                 </span>
               </button>
             </div>
           </div>
 
           {/* Instructions */}
-          <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
-            <h4 className="font-semibold text-gray-900 mb-2">Printing Instructions:</h4>
-            <ol className="text-sm text-gray-700 space-y-1 list-decimal list-inside">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-semibold text-blue-900 mb-2">Printing Instructions:</h4>
+            <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
               <li>Print on A4 paper in portrait orientation</li>
-              <li>Use high-quality printing for best results</li>
-              <li>Ensure printer settings are set to "Actual Size"</li>
-              <li>Consider using slightly heavier paper (120-150gsm) for menus</li>
+              <li>Use high-quality color printing for best food photo reproduction</li>
+              <li>Ensure printer settings are set to "Actual Size" or "100%"</li>
+              <li>Consider using premium paper (150-200gsm) for professional results</li>
+              <li>For best results, use a color laser printer or professional printing service</li>
             </ol>
           </div>
         </div>
