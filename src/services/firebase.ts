@@ -1096,12 +1096,7 @@ class FirebaseService {
     }
   }
 
-  async getAllSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
-    try {
-      const q = query(
-        collection(db, 'supplierProducts'),
-      )
-    }
+  async addSupplierProduct(product: Omit<SupplierProduct, 'id'>): Promise<string> {
     try {
       console.log('Firebase: Adding supplier product:', product.name, 'for supplier:', product.supplierId);
       const docRef = await addDoc(collection(db, 'supplierProducts'), {
