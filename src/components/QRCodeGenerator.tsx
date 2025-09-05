@@ -76,126 +76,124 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
     }
   };
 
-  const downloadAllQRCodes = async (format: 'png' | 'pdf') => {
-    if (selectedTables.length === 0) return;
-    setGenerating(true);
+ const downloadAllQRCodes = async (format: 'png' | 'pdf') => {
+  if (selectedTables.length === 0) return;
+  setGenerating(true);
 
-    try {
-      if (format === 'png') {
-        for (const tableNumber of selectedTables) {
-          const qrDataURL = qrCodes[tableNumber] || (await generateQRCode(tableNumber));
-          const link = document.createElement('a');
-          link.download = `table-${tableNumber}-qr.png`;
-          link.href = qrDataURL;
-          link.click();
-          await new Promise(resolve => setTimeout(resolve, 100));
+  try {
+    if (format === 'png') {
+      for (const tableNumber of selectedTables) {
+        await downloadSingleQR(tableNumber, 'png');
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    } else {
+      // Portrait A4
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();   // 210mm
+      const pageHeight = pdf.internal.pageSize.getHeight(); // 297mm
+
+      const cols = 3;
+      const rows = 2;
+      const slotWidth = pageWidth / cols;
+      const slotHeight = pageHeight / rows;
+
+      // Repeat tables if less than 6
+      let tablesToPrint = [...selectedTables];
+      while (tablesToPrint.length < 6) {
+        tablesToPrint = tablesToPrint.concat(selectedTables);
+      }
+      tablesToPrint = tablesToPrint.slice(0, Math.ceil(selectedTables.length / 6) * 6);
+
+      for (let i = 0; i < tablesToPrint.length; i++) {
+        if (i > 0 && i % (cols * rows) === 0) {
+          pdf.addPage();
         }
-      } else {
-        // --- PDF WITH 6 CARDS PER PAGE ---
-        const pdf = new jsPDF({
-          orientation: 'landscape',
-          unit: 'mm',
-          format: 'a4',
-        });
 
-        const pageWidth = pdf.internal.pageSize.getWidth(); // 297mm
-        const pageHeight = pdf.internal.pageSize.getHeight(); // 210mm
-        const cols = 3;
-        const rows = 2;
-        const slotWidth = pageWidth / cols;
-        const slotHeight = pageHeight / rows;
+        const pageIndex = i % (cols * rows);
+        const col = pageIndex % cols;
+        const row = Math.floor(pageIndex / cols);
 
-        for (let i = 0; i < selectedTables.length; i++) {
-          if (i > 0 && i % (cols * rows) === 0) {
-            pdf.addPage();
-          }
+        const x = col * slotWidth;
+        const y = row * slotHeight;
 
-          const pageIndex = i % (cols * rows);
-          const col = pageIndex % cols;
-          const row = Math.floor(pageIndex / cols);
-          const x = col * slotWidth;
-          const y = row * slotHeight;
+        const tableNumber = tablesToPrint[i];
+        const qrDataURL = qrCodes[tableNumber] || await generateQRCode(tableNumber);
 
-          const tableNumber = selectedTables[i];
-          const qrDataURL = qrCodes[tableNumber] || (await generateQRCode(tableNumber));
+        // Card background
+        pdf.setFillColor(255, 255, 255);
+        pdf.roundedRect(x + 5, y + 5, slotWidth - 10, slotHeight - 10, 5, 5, 'F');
 
-          // Card background
+        // Left branding area
+        const leftWidth = (slotWidth - 20) * 0.45;
+        pdf.setFillColor(34, 197, 94); // green
+        pdf.roundedRect(x + 10, y + 15, leftWidth, slotHeight - 30, 5, 5, 'F');
+
+        // Business logo (replace with your actual logo)
+        if (businessLogo) {
+          pdf.addImage(
+            businessLogo,
+            'PNG',
+            x + 10 + (leftWidth / 2) - 12,
+            y + 25,
+            24,
+            24
+          );
+        } else {
+          // If no logo, fallback to business initial
           pdf.setFillColor(255, 255, 255);
-          pdf.roundedRect(x + 5, y + 5, slotWidth - 10, slotHeight - 10, 5, 5, 'F');
-
-          // Left branding area
-          const leftWidth = (slotWidth - 20) * 0.45;
-          pdf.setFillColor(34, 197, 94); // green
-          pdf.roundedRect(x + 10, y + 15, leftWidth, slotHeight - 30, 5, 5, 'F');
-
-          // Business logo placeholder (circle)
-          pdf.setFillColor(255, 255, 255);
-          pdf.circle(x + 10 + leftWidth / 2, y + 35, 12, 'F');
-
-          // Business initial
+          pdf.circle(x + 10 + leftWidth / 2, y + 37, 12, 'F');
           pdf.setTextColor(34, 197, 94);
           pdf.setFontSize(14);
           pdf.setFont('helvetica', 'bold');
-          pdf.text(
-            businessName.charAt(0).toUpperCase(),
-            x + 10 + leftWidth / 2,
-            y + 40,
-            { align: 'center' }
-          );
-
-          // Business name
-          pdf.setTextColor(255, 255, 255);
-          pdf.setFontSize(10);
-          pdf.text(
-            businessName.toUpperCase(),
-            x + 10 + leftWidth / 2,
-            y + slotHeight - 20,
-            { align: 'center' }
-          );
-
-          // Table number
-          pdf.setFontSize(8);
-          pdf.text(
-            `TABLE ${tableNumber}`,
-            x + 10 + leftWidth / 2,
-            y + slotHeight - 10,
-            { align: 'center' }
-          );
-
-          // QR code on right side
-          const qrSize = 40;
-          const qrX = x + leftWidth + 25;
-          const qrY = y + (slotHeight - qrSize) / 2;
-
-          pdf.setFillColor(255, 255, 255);
-          pdf.roundedRect(qrX - 5, qrY - 5, qrSize + 10, qrSize + 10, 4, 4, 'FD');
-          pdf.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize);
-
-          // Welcome text
-          pdf.setTextColor(34, 197, 94);
-          pdf.setFontSize(12);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text('Welcome!', qrX + qrSize / 2, qrY - 10, { align: 'center' });
-
-          pdf.setTextColor(107, 114, 128);
-          pdf.setFontSize(8);
-          pdf.text(
-            'Our menu on your smartphone',
-            qrX + qrSize / 2,
-            qrY + qrSize + 15,
-            { align: 'center' }
-          );
+          pdf.text(businessName.charAt(0).toUpperCase(), x + 10 + leftWidth / 2, y + 42, { align: 'center' });
         }
 
-        pdf.save(`${businessName.toLowerCase().replace(/\s+/g, '-')}-qr-codes.pdf`);
+        // Business name
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(10);
+        pdf.text(businessName.toUpperCase(), x + 10 + leftWidth / 2, y + slotHeight - 25, { align: 'center' });
+
+        // Table number (large + bold at bottom)
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(`TABLE ${tableNumber}`, x + 10 + leftWidth / 2, y + slotHeight - 10, { align: 'center' });
+
+        // QR code on right side
+        const qrSize = 45;
+        const qrX = x + leftWidth + 25;
+        const qrY = y + (slotHeight - qrSize) / 2;
+
+        pdf.setFillColor(255, 255, 255);
+        pdf.roundedRect(qrX - 5, qrY - 5, qrSize + 10, qrSize + 10, 4, 4, 'FD');
+        pdf.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize);
+
+        // Welcome text
+        pdf.setTextColor(34, 197, 94);
+        pdf.setFontSize(12);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Welcome!', qrX + qrSize / 2, qrY - 10, { align: 'center' });
+
+        pdf.setTextColor(107, 114, 128);
+        pdf.setFontSize(8);
+        pdf.text('Scan to view our menu', qrX + qrSize / 2, qrY + qrSize + 15, { align: 'center' });
       }
-    } catch (error) {
-      console.error('Error downloading QR codes:', error);
-      alert('Failed to download QR codes');
-    } finally {
-      setGenerating(false);
+
+      pdf.save(`${businessName.toLowerCase().replace(/\s+/g, '-')}-qr-codes.pdf`);
     }
-  };
+  } catch (error) {
+    console.error('Error downloading QR codes:', error);
+    alert('Failed to download QR codes');
+  } finally {
+    setGenerating(false);
+  }
+};
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
