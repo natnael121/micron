@@ -1031,211 +1031,213 @@ class FirebaseService {
       throw error;
     }
   }
+// =======================
+// Supplier Products Management
+// =======================
 
-  // =======================
-  // Supplier Products Management
-  // =======================
-  
-  async getAllSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
-    try {
-      console.log('Firebase: Loading all products for supplier:', supplierId);
-      const q = query(
-        collection(db, 'supplierProducts'),
-        where('supplierId', '==', supplierId)
-      );
-      const snapshot = await getDocs(q);
-      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
-      
-      console.log('Firebase: Raw products loaded:', products.length);
-      
-      // Sort by category and name
-      const sortedProducts = products.sort((a, b) => {
-        if (a.category !== b.category) {
-          return a.category.localeCompare(b.category);
-        }
-        return a.name.localeCompare(b.name);
-      });
-      
-      console.log('Firebase: Sorted products:', sortedProducts.length);
-      return sortedProducts;
-    } catch (error) {
-      console.error('Firebase: Error fetching all supplier products:', error);
-      throw error; // Let the caller handle the error
-    }
-  }
-
-  async getSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
-    try {
-      console.log('Firebase: Loading available products for supplier:', supplierId);
-      const q = query(
-        collection(db, 'supplierProducts'),
-        where('supplierId', '==', supplierId),
-        where('isAvailable', '==', true)
-      );
-      const snapshot = await getDocs(q);
-      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
-      
-      console.log('Firebase: Available products loaded:', products.length);
-      
-      // Sort by category and name
-      const sortedProducts = products.sort((a, b) => {
-        if (a.category !== b.category) {
-          return a.category.localeCompare(b.category);
-        }
-        return a.name.localeCompare(b.name);
-      });
-      
-      console.log('Firebase: Sorted available products:', sortedProducts.length);
-      return sortedProducts;
-    } catch (error) {
-      console.error('Firebase: Error fetching supplier products:', error);
-      throw error; // Let the caller handle the error
-    }
-  }
-
-  async addSupplierProduct(product: Omit<SupplierProduct, 'id'>): Promise<string> {
-    try {
-      console.log('Firebase: Adding supplier product:', product.name, 'for supplier:', product.supplierId);
-      const docRef = await addDoc(collection(db, 'supplierProducts'), {
-        ...product,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-      console.log('Firebase: Product added with ID:', docRef.id);
-      return docRef.id;
-    } catch (error) {
-      console.error('Error adding supplier product:', error);
-      throw error;
-    }
-  }
-
-  async updateSupplierProduct(id: string, updates: Partial<SupplierProduct>): Promise<void> {
-    try {
-      console.log('Firebase: Updating supplier product:', id, updates);
-      const docRef = doc(db, 'supplierProducts', id);
-      await updateDoc(docRef, {
-        ...updates,
-        updated_at: new Date().toISOString(),
-      });
-      console.log('Firebase: Product updated successfully');
-    } catch (error) {
-      console.error('Error updating supplier product:', error);
-      throw error;
-    }
-  }
-
-  async deleteSupplierProduct(id: string): Promise<void> {
-    try {
-      await deleteDoc(doc(db, 'supplierProducts', id));
-    } catch (error) {
-      console.error('Error deleting supplier product:', error);
-      throw error;
-    }
-  }
-
-  // =======================
-  // Purchase Orders Management
-  // =======================
-  
-  async getPurchaseOrders(restaurantId: string): Promise<PurchaseOrder[]> {
-    try {
-      const q = query(
-        collection(db, 'purchaseOrders'),
-        where('restaurantId', '==', restaurantId),
-        orderBy('created_at', 'desc')
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
-    } catch (error) {
-      console.error('Error fetching purchase orders:', error);
-      throw error;
-    }
-  }
-
-  async getSupplierOrders(supplierId: string): Promise<PurchaseOrder[]> {
-    try {
-      console.log('Firebase: Loading available products for supplier:', supplierId);
-      // Get all products first, then filter available ones
-      const q = query(
-        collection(db, 'purchaseOrders'),
-        orderBy('created_at', 'desc')
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
-    } catch (error) {
-      console.error('Error fetching supplier orders:', error);
-      return [];
-    }
-  }
-
-  async getSupplierCustomers(supplierId: string): Promise<RestaurantCustomer[]> {
-    try {
-      // Get all purchase orders for this supplier
-      const orders = await this.getSupplierOrders(supplierId);
-      
-      // Group by restaurant and calculate stats
-      const customerStats: Record<string, {
-        orders: PurchaseOrder[];
-        totalSpent: number;
-        totalOrders: number;
-      }> = {};
-
-      orders.forEach(order => {
-        if (!customerStats[order.restaurantId]) {
-          customerStats[order.restaurantId] = {
-            orders: [],
-            totalSpent: 0,
-            totalOrders: 0
-          };
-        }
-        customerStats[order.restaurantId].orders.push(order);
-        customerStats[order.restaurantId].totalSpent += order.total;
-        customerStats[order.restaurantId].totalOrders += 1;
-      });
-
-      // Get restaurant details and create customer objects
-      const customers: RestaurantCustomer[] = [];
-      
-      for (const [restaurantId, stats] of Object.entries(customerStats)) {
-        try {
-          const restaurant = await this.getUserProfile(restaurantId);
-          if (restaurant) {
-            const lastOrder = stats.orders.sort((a, b) => 
-              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            )[0];
-
-            customers.push({
-              id: restaurantId,
-              name: restaurant.businessName || restaurant.name || 'Unknown Restaurant',
-              contactEmail: restaurant.email,
-              contactPhone: restaurant.phone || '',
-              address: {
-                line1: restaurant.address || '',
-                city: restaurant.city || '',
-                state: restaurant.state || '',
-                postalCode: restaurant.postalCode || '',
-                country: restaurant.country || 'US',
-                latitude: restaurant.latitude,
-                longitude: restaurant.longitude,
-              },
-              totalOrders: stats.totalOrders,
-              totalSpent: stats.totalSpent,
-              lastOrderDate: lastOrder?.created_at,
-              averageOrderValue: stats.totalSpent / stats.totalOrders,
-              status: 'active'
-            });
-          }
-        } catch (error) {
-          console.error(`Error fetching restaurant ${restaurantId}:`, error);
-        }
+async getAllSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
+  try {
+    console.log('Firebase: Loading all products for supplier:', supplierId);
+    
+    // Use the correct field name 'supplierId' (with capital I)
+    const q = query(
+      collection(db, 'supplierProducts'),
+      where('supplierId', '==', supplierId)
+    );
+    
+    const snapshot = await getDocs(q);
+    const products = snapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      ...doc.data() 
+    } as SupplierProduct));
+    
+    console.log('Firebase: Products found for supplier:', products.length);
+    
+    // Sort by category and name
+    const sortedProducts = products.sort((a, b) => {
+      if (a.category !== b.category) {
+        return a.category.localeCompare(b.category);
       }
-
-      return customers.sort((a, b) => b.totalSpent - a.totalSpent);
-    } catch (error) {
-      console.error('Error fetching supplier customers:', error);
-      return [];
-    }
+      return a.name.localeCompare(b.name);
+    });
+    
+    console.log('Firebase: Sorted products:', sortedProducts.length);
+    return sortedProducts;
+  } catch (error) {
+    console.error('Firebase: Error fetching all supplier products:', error);
+    // Return empty array instead of throwing to prevent UI crashes
+    return [];
   }
+}
+
+async getSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
+  try {
+    console.log('Firebase: Loading available products for supplier:', supplierId);
+    
+    // First get all products, then filter for availability
+    const allProducts = await this.getAllSupplierProducts(supplierId);
+    const availableProducts = allProducts.filter(product => product.isAvailable);
+    
+    console.log('Firebase: Available products:', availableProducts.length);
+    return availableProducts;
+  } catch (error) {
+    console.error('Firebase: Error fetching supplier products:', error);
+    return [];
+  }
+}
+
+async addSupplierProduct(product: Omit<SupplierProduct, 'id'>): Promise<string> {
+  try {
+    console.log('Firebase: Adding supplier product:', product.name, 'for supplier:', product.supplierId);
+    const docRef = await addDoc(collection(db, 'supplierProducts'), {
+      ...product,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    console.log('Firebase: Product added with ID:', docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error adding supplier product:', error);
+    throw error;
+  }
+}
+
+async updateSupplierProduct(id: string, updates: Partial<SupplierProduct>): Promise<void> {
+  try {
+    console.log('Firebase: Updating supplier product:', id, updates);
+    const docRef = doc(db, 'supplierProducts', id);
+    await updateDoc(docRef, {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    });
+    console.log('Firebase: Product updated successfully');
+  } catch (error) {
+    console.error('Error updating supplier product:', error);
+    throw error;
+  }
+}
+
+async deleteSupplierProduct(id: string): Promise<void> {
+  try {
+    await deleteDoc(doc(db, 'supplierProducts', id));
+  } catch (error) {
+    console.error('Error deleting supplier product:', error);
+    throw error;
+  }
+}
+
+// =======================
+// Purchase Orders Management
+// =======================
+
+async getPurchaseOrders(restaurantId: string): Promise<PurchaseOrder[]> {
+  try {
+    const q = query(
+      collection(db, 'purchaseOrders'),
+      where('restaurantId', '==', restaurantId),
+      orderBy('created_at', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
+  } catch (error) {
+    console.error('Error fetching purchase orders:', error);
+    throw error;
+  }
+}
+
+async getSupplierOrders(supplierId: string): Promise<PurchaseOrder[]> {
+  try {
+    console.log('Firebase: Loading orders for supplier:', supplierId);
+    
+    // Use the correct field name 'supplierId' (with capital I)
+    const q = query(
+      collection(db, 'purchaseOrders'),
+      where('supplierId', '==', supplierId),
+      orderBy('created_at', 'desc')
+    );
+    
+    const snapshot = await getDocs(q);
+    const orders = snapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      ...doc.data() 
+    } as PurchaseOrder));
+    
+    console.log('Firebase: Orders found for supplier:', orders.length);
+    return orders;
+  } catch (error) {
+    console.error('Error fetching supplier orders:', error);
+    return [];
+  }
+}
+
+async getSupplierCustomers(supplierId: string): Promise<RestaurantCustomer[]> {
+  try {
+    // Get all purchase orders for this supplier
+    const orders = await this.getSupplierOrders(supplierId);
+    
+    // Group by restaurant and calculate stats
+    const customerStats: Record<string, {
+      orders: PurchaseOrder[];
+      totalSpent: number;
+      totalOrders: number;
+    }> = {};
+
+    orders.forEach(order => {
+      if (!customerStats[order.restaurantId]) {
+        customerStats[order.restaurantId] = {
+          orders: [],
+          totalSpent: 0,
+          totalOrders: 0
+        };
+      }
+      customerStats[order.restaurantId].orders.push(order);
+      customerStats[order.restaurantId].totalSpent += order.total;
+      customerStats[order.restaurantId].totalOrders += 1;
+    });
+
+    // Get restaurant details and create customer objects
+    const customers: RestaurantCustomer[] = [];
+    
+    for (const [restaurantId, stats] of Object.entries(customerStats)) {
+      try {
+        const restaurant = await this.getUserProfile(restaurantId);
+        if (restaurant) {
+          const lastOrder = stats.orders.sort((a, b) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          )[0];
+
+          customers.push({
+            id: restaurantId,
+            name: restaurant.businessName || restaurant.name || 'Unknown Restaurant',
+            contactEmail: restaurant.email,
+            contactPhone: restaurant.phone || '',
+            address: {
+              line1: restaurant.address || '',
+              city: restaurant.city || '',
+              state: restaurant.state || '',
+              postalCode: restaurant.postalCode || '',
+              country: restaurant.country || 'US',
+              latitude: restaurant.latitude,
+              longitude: restaurant.longitude,
+            },
+            totalOrders: stats.totalOrders,
+            totalSpent: stats.totalSpent,
+            lastOrderDate: lastOrder?.created_at,
+            averageOrderValue: stats.totalSpent / stats.totalOrders,
+            status: 'active'
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching restaurant ${restaurantId}:`, error);
+      }
+    }
+
+    return customers.sort((a, b) => b.totalSpent - a.totalSpent);
+  } catch (error) {
+    console.error('Error fetching supplier customers:', error);
+    return [];
+  }
+}
 
   // =======================
   // Real-time Listeners
