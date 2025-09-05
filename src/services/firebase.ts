@@ -12,13 +12,10 @@ import {
   limit,
   onSnapshot,
   writeBatch,
-  increment,
   Timestamp,
-  startAfter,
-  endBefore
+  setDoc
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../config/firebase';
+import { db } from '../config/firebase';
 import { 
   User, 
   MenuItem, 
@@ -37,19 +34,18 @@ import {
   ScheduledMenuItem
 } from '../types';
 import { 
-  DeliveryIntegration, 
-  DeliveryOrder, 
-  DeliveryWebhookEvent 
-} from '../types/delivery';
-import { 
   Supplier, 
   SupplierProduct, 
   PurchaseOrder, 
   SupplierInvoice,
-  SupplierAnalytics,
-  SupplierUser,
-  RestaurantCustomer
+  RestaurantCustomer,
+  SupplierUser
 } from '../types/supplier';
+import { 
+  DeliveryIntegration,
+  DeliveryOrder,
+  DeliveryWebhookEvent
+} from '../types/delivery';
 
 class FirebaseService {
   // =======================
@@ -58,9 +54,11 @@ class FirebaseService {
   
   async getUserProfile(userId: string): Promise<User | null> {
     try {
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      if (userDoc.exists()) {
-        return { id: userDoc.id, ...userDoc.data() } as User;
+      const docRef = doc(db, 'users', userId);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() } as User;
       }
       return null;
     } catch (error) {
@@ -71,8 +69,8 @@ class FirebaseService {
 
   async updateUserProfile(userId: string, updates: Partial<User>): Promise<void> {
     try {
-      const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, {
+      const docRef = doc(db, 'users', userId);
+      await updateDoc(docRef, {
         ...updates,
         updated_at: new Date().toISOString(),
       });
@@ -92,148 +90,19 @@ class FirebaseService {
     }
   }
 
-  async getAllRestaurants(): Promise<any[]> {
-    try {
-      const snapshot = await getDocs(
-        query(collection(db, 'users'), orderBy('created_at', 'desc'))
-      );
-      return snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          businessName: data.businessName || 'Unknown',
-          ownerEmail: data.email,
-          ownerName: data.name || 'Unknown',
-          phone: data.phone,
-          status: data.status || 'active',
-          created_at: data.created_at,
-          totalOrders: 0, // Would be calculated from orders
-          totalRevenue: 0, // Would be calculated from orders
-        };
-      });
-    } catch (error) {
-      console.error('Error fetching restaurants:', error);
-      throw error;
-    }
-  }
-
-  async getPlatformStats(): Promise<any> {
-    try {
-      const [usersSnapshot, ordersSnapshot] = await Promise.all([
-        getDocs(collection(db, 'users')),
-        getDocs(query(collection(db, 'orders'), limit(1000)))
-      ]);
-
-      const totalUsers = usersSnapshot.size;
-      const orders = ordersSnapshot.docs.map(doc => doc.data());
-      const totalOrders = orders.length;
-      const totalRevenue = orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
-
-      // Generate monthly growth data (mock for now)
-      const monthlyGrowth = [];
-      for (let i = 11; i >= 0; i--) {
-        const date = new Date();
-        date.setMonth(date.getMonth() - i);
-        monthlyGrowth.push({
-          month: date.toLocaleDateString('en-US', { month: 'short' }),
-          restaurants: Math.floor(totalUsers * (0.8 + Math.random() * 0.4)),
-          revenue: Math.floor(totalRevenue * (0.8 + Math.random() * 0.4) / 12)
-        });
-      }
-
-      return {
-        totalRestaurants: totalUsers,
-        totalUsers,
-        totalOrders,
-        totalRevenue,
-        monthlyGrowth
-      };
-    } catch (error) {
-      console.error('Error fetching platform stats:', error);
-      throw error;
-    }
-  }
-
-  async createRestaurant(data: any): Promise<string> {
-    try {
-      const docRef = await addDoc(collection(db, 'users'), {
-        ...data,
-        created_at: new Date().toISOString(),
-        status: 'active',
-        subscription: 'free',
-        settings: {
-          currency: 'USD',
-          language: 'en',
-          theme: 'light',
-          notifications: true,
-        }
-      });
-      return docRef.id;
-    } catch (error) {
-      console.error('Error creating restaurant:', error);
-      throw error;
-    }
-  }
-
-  async updateRestaurant(id: string, updates: any): Promise<void> {
-    try {
-      await updateDoc(doc(db, 'users', id), {
-        ...updates,
-        updated_at: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('Error updating restaurant:', error);
-      throw error;
-    }
-  }
-
-  async deleteRestaurant(id: string): Promise<void> {
-    try {
-      await deleteDoc(doc(db, 'users', id));
-    } catch (error) {
-      console.error('Error deleting restaurant:', error);
-      throw error;
-    }
-  }
-
-  async updateUserStatus(userId: string, isActive: boolean): Promise<void> {
-    try {
-      await updateDoc(doc(db, 'users', userId), {
-        status: isActive ? 'active' : 'inactive',
-        updated_at: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('Error updating user status:', error);
-      throw error;
-    }
-  }
-
-  async resetUserPassword(email: string): Promise<void> {
-    // This would typically use Firebase Auth admin SDK
-    // For now, we'll just log it
-    console.log('Password reset requested for:', email);
-  }
-
   // =======================
-  // Menu Management
+  // Menu Items Management
   // =======================
   
   async getMenuItems(userId: string): Promise<MenuItem[]> {
     try {
       const q = query(
         collection(db, 'menuItems'),
-        where('userId', '==', userId)
+        where('userId', '==', userId),
+        orderBy('name')
       );
       const snapshot = await getDocs(q);
-      const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem));
-      
-      // Sort in memory to avoid composite index requirement
-      return items.sort((a, b) => {
-        if (a.category !== b.category) {
-          return a.category.localeCompare(b.category);
-        }
-        return a.name.localeCompare(b.name);
-      });
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MenuItem));
     } catch (error) {
       console.error('Error fetching menu items:', error);
       throw error;
@@ -251,35 +120,29 @@ class FirebaseService {
       const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
       const currentDay = now.getDay();
 
-      // Find current active schedule
-      const currentSchedule = schedules.find(schedule => {
-        if (!schedule.isActive || !schedule.daysOfWeek.includes(currentDay)) return false;
-        return currentTime >= schedule.startTime && currentTime <= schedule.endTime;
-      });
-
       return menuItems.map(item => {
-        let isCurrentlyAvailable = item.available;
+        let currentSchedule: MenuSchedule | undefined;
         let nextAvailableSchedule: MenuSchedule | undefined;
+        let isCurrentlyAvailable = true;
 
         // If item has schedules, check availability
         if (item.scheduleIds && item.scheduleIds.length > 0) {
-          const itemSchedules = schedules.filter(s => item.scheduleIds!.includes(s.id) && s.isActive);
-          
-          if (itemSchedules.length > 0) {
-            // Check if any of the item's schedules are currently active
-            const activeSchedule = itemSchedules.find(schedule => {
-              if (!schedule.daysOfWeek.includes(currentDay)) return false;
-              return currentTime >= schedule.startTime && currentTime <= schedule.endTime;
-            });
+          const itemSchedules = schedules.filter(s => 
+            item.scheduleIds!.includes(s.id) && s.isActive
+          );
 
-            isCurrentlyAvailable = item.available && !!activeSchedule;
+          // Find current active schedule
+          currentSchedule = itemSchedules.find(schedule => {
+            if (!schedule.daysOfWeek.includes(currentDay)) return false;
+            return currentTime >= schedule.startTime && currentTime <= schedule.endTime;
+          });
 
-            // Find next available schedule if not currently available
-            if (!activeSchedule) {
-              nextAvailableSchedule = itemSchedules
-                .filter(s => s.daysOfWeek.includes(currentDay) && s.startTime > currentTime)
-                .sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
-            }
+          // If no current schedule, find next available
+          if (!currentSchedule) {
+            isCurrentlyAvailable = false;
+            nextAvailableSchedule = itemSchedules.find(schedule => 
+              schedule.daysOfWeek.includes(currentDay) && currentTime < schedule.startTime
+            ) || itemSchedules[0]; // Fallback to first schedule
           }
         }
 
@@ -287,8 +150,8 @@ class FirebaseService {
           ...item,
           currentSchedule,
           nextAvailableSchedule,
-          isCurrentlyAvailable,
-        } as ScheduledMenuItem;
+          isCurrentlyAvailable: isCurrentlyAvailable && item.available,
+        };
       });
     } catch (error) {
       console.error('Error fetching scheduled menu items:', error);
@@ -311,8 +174,8 @@ class FirebaseService {
 
   async updateMenuItem(id: string, updates: Partial<MenuItem>): Promise<void> {
     try {
-      const itemRef = doc(db, 'menuItems', id);
-      await updateDoc(itemRef, {
+      const docRef = doc(db, 'menuItems', id);
+      await updateDoc(docRef, {
         ...updates,
         last_updated: new Date().toISOString(),
       });
@@ -332,7 +195,7 @@ class FirebaseService {
   }
 
   // =======================
-  // Category Management
+  // Categories Management
   // =======================
   
   async getCategories(userId: string): Promise<Category[]> {
@@ -363,7 +226,8 @@ class FirebaseService {
 
   async updateCategory(id: string, updates: Partial<Category>): Promise<void> {
     try {
-      await updateDoc(doc(db, 'categories', id), updates);
+      const docRef = doc(db, 'categories', id);
+      await updateDoc(docRef, updates);
     } catch (error) {
       console.error('Error updating category:', error);
       throw error;
@@ -380,7 +244,7 @@ class FirebaseService {
   }
 
   // =======================
-  // Schedule Management
+  // Menu Schedules Management
   // =======================
   
   async getMenuSchedules(userId: string): Promise<MenuSchedule[]> {
@@ -411,7 +275,8 @@ class FirebaseService {
 
   async updateMenuSchedule(id: string, updates: Partial<MenuSchedule>): Promise<void> {
     try {
-      await updateDoc(doc(db, 'menuSchedules', id), updates);
+      const docRef = doc(db, 'menuSchedules', id);
+      await updateDoc(docRef, updates);
     } catch (error) {
       console.error('Error updating menu schedule:', error);
       throw error;
@@ -428,7 +293,7 @@ class FirebaseService {
   }
 
   // =======================
-  // Department Management
+  // Departments Management
   // =======================
   
   async getDepartments(userId: string): Promise<Department[]> {
@@ -459,7 +324,8 @@ class FirebaseService {
 
   async updateDepartment(id: string, updates: Partial<Department>): Promise<void> {
     try {
-      await updateDoc(doc(db, 'departments', id), updates);
+      const docRef = doc(db, 'departments', id);
+      await updateDoc(docRef, updates);
     } catch (error) {
       console.error('Error updating department:', error);
       throw error;
@@ -520,9 +386,10 @@ class FirebaseService {
 
   async updateWaiterAssignment(id: string, updates: Partial<WaiterAssignment>): Promise<void> {
     try {
-      await updateDoc(doc(db, 'waiterAssignments', id), {
+      const docRef = doc(db, 'waiterAssignments', id);
+      await updateDoc(docRef, {
         ...updates,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       });
     } catch (error) {
       console.error('Error updating waiter assignment:', error);
@@ -540,7 +407,7 @@ class FirebaseService {
   }
 
   // =======================
-  // Order Management
+  // Orders Management
   // =======================
   
   async getOrders(userId: string, limitCount?: number): Promise<Order[]> {
@@ -565,9 +432,11 @@ class FirebaseService {
 
   async getOrder(orderId: string): Promise<Order | null> {
     try {
-      const orderDoc = await getDoc(doc(db, 'orders', orderId));
-      if (orderDoc.exists()) {
-        return { id: orderDoc.id, ...orderDoc.data() } as Order;
+      const docRef = doc(db, 'orders', orderId);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() } as Order;
       }
       return null;
     } catch (error) {
@@ -576,29 +445,12 @@ class FirebaseService {
     }
   }
 
-  async getOrderByDeliveryId(deliveryOrderId: string): Promise<Order | null> {
-    try {
-      const q = query(
-        collection(db, 'orders'),
-        where('deliveryInfo.orderId', '==', deliveryOrderId),
-        limit(1)
-      );
-      const snapshot = await getDocs(q);
-      
-      if (!snapshot.empty) {
-        const doc = snapshot.docs[0];
-        return { id: doc.id, ...doc.data() } as Order;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error fetching order by delivery ID:', error);
-      throw error;
-    }
-  }
-
   async addOrder(order: Omit<Order, 'id'>): Promise<string> {
     try {
-      const docRef = await addDoc(collection(db, 'orders'), order);
+      const docRef = await addDoc(collection(db, 'orders'), {
+        ...order,
+        timestamp: order.timestamp || new Date().toISOString(),
+      });
       return docRef.id;
     } catch (error) {
       console.error('Error adding order:', error);
@@ -608,7 +460,8 @@ class FirebaseService {
 
   async updateOrder(id: string, updates: Partial<Order>): Promise<void> {
     try {
-      await updateDoc(doc(db, 'orders', id), {
+      const docRef = doc(db, 'orders', id);
+      await updateDoc(docRef, {
         ...updates,
         updated_at: new Date().toISOString(),
       });
@@ -619,20 +472,18 @@ class FirebaseService {
   }
 
   // =======================
-  // Pending Orders
+  // Pending Orders Management
   // =======================
   
   async getPendingOrders(userId: string): Promise<PendingOrder[]> {
     try {
       const q = query(
         collection(db, 'pendingOrders'),
-        where('userId', '==', userId)
+        where('userId', '==', userId),
+        orderBy('timestamp', 'desc')
       );
       const snapshot = await getDocs(q);
-      const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder));
-      
-      // Sort in memory to avoid composite index requirement
-      return orders.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PendingOrder));
     } catch (error) {
       console.error('Error fetching pending orders:', error);
       throw error;
@@ -641,7 +492,10 @@ class FirebaseService {
 
   async addPendingOrder(order: Omit<PendingOrder, 'id'>): Promise<string> {
     try {
-      const docRef = await addDoc(collection(db, 'pendingOrders'), order);
+      const docRef = await addDoc(collection(db, 'pendingOrders'), {
+        ...order,
+        timestamp: order.timestamp || new Date().toISOString(),
+      });
       return docRef.id;
     } catch (error) {
       console.error('Error adding pending order:', error);
@@ -649,13 +503,14 @@ class FirebaseService {
     }
   }
 
-  async approvePendingOrder(pendingOrderId: string, pendingOrder: PendingOrder): Promise<void> {
+  async approvePendingOrder(pendingOrderId: string, pendingOrder: PendingOrder): Promise<string> {
     try {
       // Create approved order
       const approvedOrder: Omit<Order, 'id'> = {
         ...pendingOrder,
         status: 'confirmed',
         paymentStatus: 'pending',
+        timestamp: new Date().toISOString(),
       };
       
       const orderRef = await addDoc(collection(db, 'orders'), approvedOrder);
@@ -663,11 +518,13 @@ class FirebaseService {
       // Add to table bill
       await this.addToTableBill(pendingOrder.userId, pendingOrder.tableNumber, pendingOrder.items, pendingOrder.cafeId);
       
-      // Send to departments
+      // Send order to departments
       await this.sendOrderToDepartments(orderRef.id, { ...approvedOrder, id: orderRef.id }, pendingOrder.userId);
       
       // Delete pending order
       await deleteDoc(doc(db, 'pendingOrders', pendingOrderId));
+      
+      return orderRef.id;
     } catch (error) {
       console.error('Error approving pending order:', error);
       throw error;
@@ -684,7 +541,7 @@ class FirebaseService {
   }
 
   // =======================
-  // Table Bills
+  // Table Bills Management
   // =======================
   
   async getTableBills(userId: string): Promise<TableBill[]> {
@@ -717,7 +574,6 @@ class FirebaseService {
       }
 
       const snapshot = await getDocs(q);
-      
       if (!snapshot.empty) {
         const doc = snapshot.docs[0];
         return { id: doc.id, ...doc.data() } as TableBill;
@@ -756,15 +612,15 @@ class FirebaseService {
           subtotal,
           tax,
           total,
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
         });
       } else {
-        // Create new bill
+        // Create new table bill
         const subtotal = items.reduce((sum, item) => sum + item.total, 0);
         const tax = subtotal * 0.15;
         const total = subtotal + tax;
         
-        const billData: any = {
+        const billData: Omit<TableBill, 'id'> = {
           tableNumber,
           userId,
           items,
@@ -773,7 +629,7 @@ class FirebaseService {
           total,
           status: 'active',
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
         };
 
         if (cafeId) {
@@ -788,15 +644,20 @@ class FirebaseService {
     }
   }
 
-  async markTableBillAsPaid(userId: string, tableNumber: string, paymentConfirmationId?: string, cafeId?: string): Promise<void> {
+  async markTableBillAsPaid(userId: string, tableNumber: string, paymentConfirmationId?: string | null, cafeId?: string): Promise<void> {
     try {
       const bill = await this.getTableBill(userId, tableNumber, cafeId);
       if (bill) {
-        await updateDoc(doc(db, 'tableBills', bill.id), {
+        const updates: any = {
           status: 'paid',
-          paymentConfirmationId,
-          updatedAt: new Date().toISOString()
-        });
+          updatedAt: new Date().toISOString(),
+        };
+
+        if (paymentConfirmationId) {
+          updates.paymentConfirmationId = paymentConfirmationId;
+        }
+
+        await updateDoc(doc(db, 'tableBills', bill.id), updates);
       }
     } catch (error) {
       console.error('Error marking table bill as paid:', error);
@@ -805,7 +666,7 @@ class FirebaseService {
   }
 
   // =======================
-  // Payment Confirmations
+  // Payment Confirmations Management
   // =======================
   
   async getPaymentConfirmations(userId: string): Promise<PaymentConfirmation[]> {
@@ -813,13 +674,11 @@ class FirebaseService {
       const q = query(
         collection(db, 'paymentConfirmations'),
         where('userId', '==', userId),
-        where('status', '==', 'pending')
+        where('status', '==', 'pending'),
+        orderBy('timestamp', 'desc')
       );
       const snapshot = await getDocs(q);
-      const confirmations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PaymentConfirmation));
-      
-      // Sort in memory to avoid composite index requirement
-      return confirmations.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PaymentConfirmation));
     } catch (error) {
       console.error('Error fetching payment confirmations:', error);
       throw error;
@@ -838,9 +697,10 @@ class FirebaseService {
 
   async updatePaymentConfirmation(id: string, status: 'approved' | 'rejected'): Promise<void> {
     try {
-      await updateDoc(doc(db, 'paymentConfirmations', id), {
+      const docRef = doc(db, 'paymentConfirmations', id);
+      await updateDoc(docRef, {
         status,
-        processedAt: new Date().toISOString()
+        processedAt: new Date().toISOString(),
       });
     } catch (error) {
       console.error('Error updating payment confirmation:', error);
@@ -849,7 +709,7 @@ class FirebaseService {
   }
 
   // =======================
-  // Bills
+  // Bills Management
   // =======================
   
   async getBills(userId: string): Promise<Bill[]> {
@@ -872,16 +732,19 @@ class FirebaseService {
       const billData: Omit<Bill, 'id'> = {
         orderId: `table_${tableBill.tableNumber}_${Date.now()}`,
         userId: tableBill.userId,
-        cafeId: tableBill.cafeId || null,
         tableNumber: tableBill.tableNumber,
         items: tableBill.items,
         subtotal: tableBill.subtotal,
         tax: tableBill.tax,
         total: tableBill.total,
         timestamp: new Date().toISOString(),
-        status: 'paid'
+        status: 'paid',
       };
-      
+
+      if (tableBill.cafeId) {
+        billData.cafeId = tableBill.cafeId;
+      }
+
       const docRef = await addDoc(collection(db, 'bills'), billData);
       return docRef.id;
     } catch (error) {
@@ -892,10 +755,8 @@ class FirebaseService {
 
   async updateBill(id: string, updates: Partial<Bill>): Promise<void> {
     try {
-      await updateDoc(doc(db, 'bills', id), {
-        ...updates,
-        updated_at: new Date().toISOString()
-      });
+      const docRef = doc(db, 'bills', id);
+      await updateDoc(docRef, updates);
     } catch (error) {
       console.error('Error updating bill:', error);
       throw error;
@@ -903,19 +764,19 @@ class FirebaseService {
   }
 
   // =======================
-  // Waiter Calls
+  // Waiter Calls Management
   // =======================
   
   async addWaiterCall(userId: string, tableNumber: string): Promise<string> {
     try {
-      const waiterCallData: Omit<WaiterCall, 'id'> = {
+      const waiterCall: Omit<WaiterCall, 'id'> = {
         userId,
         tableNumber,
         timestamp: new Date().toISOString(),
-        status: 'pending'
+        status: 'pending',
       };
-      
-      const docRef = await addDoc(collection(db, 'waiterCalls'), waiterCallData);
+
+      const docRef = await addDoc(collection(db, 'waiterCalls'), waiterCall);
       return docRef.id;
     } catch (error) {
       console.error('Error adding waiter call:', error);
@@ -924,7 +785,7 @@ class FirebaseService {
   }
 
   // =======================
-  // Day Reports
+  // Day Reports Management
   // =======================
   
   async getDayReports(userId: string): Promise<DayReport[]> {
@@ -932,7 +793,7 @@ class FirebaseService {
       const q = query(
         collection(db, 'dayReports'),
         where('userId', '==', userId),
-        orderBy('date', 'desc'),
+        orderBy('timestamp', 'desc'),
         limit(30)
       );
       const snapshot = await getDocs(q);
@@ -943,22 +804,25 @@ class FirebaseService {
     }
   }
 
-  async createDayReport(userId: string, cashierInfo: any): Promise<string> {
+  async createDayReport(userId: string, cashierInfo: { name: string; shift: string; notes: string }): Promise<string> {
     try {
       const today = new Date().toISOString().split('T')[0];
-      
-      // Get today's data
       const [orders, waiterCalls] = await Promise.all([
-        this.getTodayOrders(userId),
-        this.getTodayWaiterCalls(userId)
+        this.getOrders(userId),
+        this.getWaiterCalls(userId)
       ]);
 
-      const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
-      const totalPayments = orders.filter(order => order.paymentStatus === 'paid').length;
+      // Filter today's data
+      const todayOrders = orders.filter(order => order.timestamp.startsWith(today));
+      const todayWaiterCalls = waiterCalls.filter(call => call.timestamp.startsWith(today));
 
-      // Calculate most ordered items
+      // Calculate stats
+      const totalRevenue = todayOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+      const totalPayments = todayOrders.filter(order => order.paymentStatus === 'paid').length;
+
+      // Most ordered items
       const itemCounts: Record<string, number> = {};
-      orders.forEach(order => {
+      todayOrders.forEach(order => {
         order.items.forEach(item => {
           itemCounts[item.name] = (itemCounts[item.name] || 0) + item.quantity;
         });
@@ -969,66 +833,40 @@ class FirebaseService {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
 
-      // Find most active table
+      // Most active table
       const tableCounts: Record<string, number> = {};
-      orders.forEach(order => {
+      todayOrders.forEach(order => {
         tableCounts[order.tableNumber] = (tableCounts[order.tableNumber] || 0) + 1;
       });
+
       const mostActiveTable = Object.entries(tableCounts)
         .sort(([,a], [,b]) => b - a)[0]?.[0] || 'None';
 
-      const reportData: Omit<DayReport, 'id'> = {
+      const report: Omit<DayReport, 'id'> = {
         userId,
         date: today,
         cashierInfo,
-        totalOrders: orders.length,
+        totalOrders: todayOrders.length,
         totalRevenue,
         totalPayments,
-        waiterCalls: waiterCalls.length,
+        waiterCalls: todayWaiterCalls.length,
         mostOrderedItems,
         mostActiveTable,
         departmentStats: {
           kitchen: {
-            orders: orders.length,
-            avgPrepTime: 15 // Would calculate from actual data
+            orders: todayOrders.length,
+            avgPrepTime: 15 // This would be calculated from actual prep times
           }
         },
         timestamp: new Date().toISOString(),
-        status: 'closed'
+        status: 'closed',
       };
 
-      const docRef = await addDoc(collection(db, 'dayReports'), reportData);
+      const docRef = await addDoc(collection(db, 'dayReports'), report);
       return docRef.id;
     } catch (error) {
       console.error('Error creating day report:', error);
       throw error;
-    }
-  }
-
-  private async getTodayOrders(userId: string): Promise<Order[]> {
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const orders = await this.getOrders(userId);
-      return orders.filter(order => order.timestamp.startsWith(today));
-    } catch (error) {
-      console.error('Error fetching today orders:', error);
-      return [];
-    }
-  }
-
-  private async getTodayWaiterCalls(userId: string): Promise<WaiterCall[]> {
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const q = query(
-        collection(db, 'waiterCalls'),
-        where('userId', '==', userId)
-      );
-      const snapshot = await getDocs(q);
-      const calls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WaiterCall));
-      return calls.filter(call => call.timestamp.startsWith(today));
-    } catch (error) {
-      console.error('Error fetching today waiter calls:', error);
-      return [];
     }
   }
 
@@ -1039,7 +877,7 @@ class FirebaseService {
   async getMenuStats(userId: string): Promise<MenuStats> {
     try {
       const [orders, menuItems] = await Promise.all([
-        this.getOrders(userId, 100),
+        this.getOrders(userId),
         this.getMenuItems(userId)
       ]);
 
@@ -1063,20 +901,19 @@ class FirebaseService {
         .sort((a, b) => b.orders - a.orders)
         .slice(0, 10);
 
-      // Generate monthly revenue (mock data for now)
+      // Monthly revenue (last 12 months)
       const monthlyRevenue = [];
       for (let i = 11; i >= 0; i--) {
         const date = new Date();
         date.setMonth(date.getMonth() - i);
-        const monthOrders = orders.filter(order => {
-          const orderDate = new Date(order.timestamp);
-          return orderDate.getMonth() === date.getMonth() && 
-                 orderDate.getFullYear() === date.getFullYear();
-        });
+        const monthStr = date.toISOString().slice(0, 7);
+        
+        const monthOrders = orders.filter(order => order.timestamp.startsWith(monthStr));
+        const revenue = monthOrders.reduce((sum, order) => sum + order.totalAmount, 0);
         
         monthlyRevenue.push({
-          month: date.toLocaleDateString('en-US', { month: 'short' }),
-          revenue: monthOrders.reduce((sum, order) => sum + order.totalAmount, 0)
+          month: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          revenue
         });
       }
 
@@ -1086,7 +923,7 @@ class FirebaseService {
         totalViews,
         popularItems,
         recentOrders: orders.slice(0, 10),
-        monthlyRevenue
+        monthlyRevenue,
       };
     } catch (error) {
       console.error('Error calculating menu stats:', error);
@@ -1130,6 +967,256 @@ class FirebaseService {
     } catch (error) {
       console.error('Error sending order to departments:', error);
       throw error;
+    }
+  }
+
+  // =======================
+  // Supplier Management
+  // =======================
+  
+  async addSupplier(supplier: Omit<Supplier, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, 'suppliers'), {
+        ...supplier,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding supplier:', error);
+      throw error;
+    }
+  }
+
+  async getSuppliers(restaurantId: string): Promise<Supplier[]> {
+    try {
+      const suppliers: Supplier[] = [];
+      
+      // Get global suppliers
+      const globalQuery = query(
+        collection(db, 'suppliers'),
+        where('type', '==', 'global'),
+        where('isActive', '==', true)
+      );
+      const globalSnapshot = await getDocs(globalQuery);
+      globalSnapshot.docs.forEach(doc => {
+        suppliers.push({ id: doc.id, ...doc.data() } as Supplier);
+      });
+      
+      // Get restaurant-specific suppliers
+      const restaurantQuery = query(
+        collection(db, 'suppliers'),
+        where('type', '==', 'restaurant_specific'),
+        where('restaurantId', '==', restaurantId),
+        where('isActive', '==', true)
+      );
+      const restaurantSnapshot = await getDocs(restaurantQuery);
+      restaurantSnapshot.docs.forEach(doc => {
+        suppliers.push({ id: doc.id, ...doc.data() } as Supplier);
+      });
+      
+      return suppliers.sort((a, b) => a.name.localeCompare(b.name));
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+      throw error;
+    }
+  }
+
+  async getAllSuppliers(): Promise<Supplier[]> {
+    try {
+      const snapshot = await getDocs(collection(db, 'suppliers'));
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Supplier));
+    } catch (error) {
+      console.error('Error fetching all suppliers:', error);
+      throw error;
+    }
+  }
+
+  // =======================
+  // Supplier Products Management
+  // =======================
+  
+  async getSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
+    try {
+      const q = query(
+        collection(db, 'supplierProducts'),
+        where('supplierId', '==', supplierId),
+        where('isAvailable', '==', true)
+      );
+      const snapshot = await getDocs(q);
+      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
+      
+      // Sort by category and name
+      return products.sort((a, b) => {
+        if (a.category !== b.category) {
+          return a.category.localeCompare(b.category);
+        }
+        return a.name.localeCompare(b.name);
+      });
+    } catch (error) {
+      console.error('Error fetching supplier products:', error);
+      return [];
+    }
+  }
+
+  async getAllSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
+    try {
+      const q = query(
+        collection(db, 'supplierProducts'),
+        where('supplierId', '==', supplierId)
+      );
+      const snapshot = await getDocs(q);
+      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
+      
+      // Sort by category and name
+      return products.sort((a, b) => {
+        if (a.category !== b.category) {
+          return a.category.localeCompare(b.category);
+        }
+        return a.name.localeCompare(b.name);
+      });
+    } catch (error) {
+      console.error('Error fetching all supplier products:', error);
+      return [];
+    }
+  }
+
+  async addSupplierProduct(product: Omit<SupplierProduct, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, 'supplierProducts'), {
+        ...product,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding supplier product:', error);
+      throw error;
+    }
+  }
+
+  async updateSupplierProduct(id: string, updates: Partial<SupplierProduct>): Promise<void> {
+    try {
+      const docRef = doc(db, 'supplierProducts', id);
+      await updateDoc(docRef, {
+        ...updates,
+        updated_at: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('Error updating supplier product:', error);
+      throw error;
+    }
+  }
+
+  async deleteSupplierProduct(id: string): Promise<void> {
+    try {
+      await deleteDoc(doc(db, 'supplierProducts', id));
+    } catch (error) {
+      console.error('Error deleting supplier product:', error);
+      throw error;
+    }
+  }
+
+  // =======================
+  // Purchase Orders Management
+  // =======================
+  
+  async getPurchaseOrders(restaurantId: string): Promise<PurchaseOrder[]> {
+    try {
+      const q = query(
+        collection(db, 'purchaseOrders'),
+        where('restaurantId', '==', restaurantId),
+        orderBy('created_at', 'desc')
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
+    } catch (error) {
+      console.error('Error fetching purchase orders:', error);
+      throw error;
+    }
+  }
+
+  async getSupplierOrders(supplierId: string): Promise<PurchaseOrder[]> {
+    try {
+      const q = query(
+        collection(db, 'purchaseOrders'),
+        where('supplierId', '==', supplierId),
+        orderBy('created_at', 'desc')
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
+    } catch (error) {
+      console.error('Error fetching supplier orders:', error);
+      return [];
+    }
+  }
+
+  async getSupplierCustomers(supplierId: string): Promise<RestaurantCustomer[]> {
+    try {
+      // Get all purchase orders for this supplier
+      const orders = await this.getSupplierOrders(supplierId);
+      
+      // Group by restaurant and calculate stats
+      const customerStats: Record<string, {
+        orders: PurchaseOrder[];
+        totalSpent: number;
+        totalOrders: number;
+      }> = {};
+
+      orders.forEach(order => {
+        if (!customerStats[order.restaurantId]) {
+          customerStats[order.restaurantId] = {
+            orders: [],
+            totalSpent: 0,
+            totalOrders: 0
+          };
+        }
+        customerStats[order.restaurantId].orders.push(order);
+        customerStats[order.restaurantId].totalSpent += order.total;
+        customerStats[order.restaurantId].totalOrders += 1;
+      });
+
+      // Get restaurant details and create customer objects
+      const customers: RestaurantCustomer[] = [];
+      
+      for (const [restaurantId, stats] of Object.entries(customerStats)) {
+        try {
+          const restaurant = await this.getUserProfile(restaurantId);
+          if (restaurant) {
+            const lastOrder = stats.orders.sort((a, b) => 
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            )[0];
+
+            customers.push({
+              id: restaurantId,
+              name: restaurant.businessName || restaurant.name || 'Unknown Restaurant',
+              contactEmail: restaurant.email,
+              contactPhone: restaurant.phone || '',
+              address: {
+                line1: restaurant.address || '',
+                city: restaurant.city || '',
+                state: restaurant.state || '',
+                postalCode: restaurant.postalCode || '',
+                country: restaurant.country || 'US',
+                latitude: restaurant.latitude,
+                longitude: restaurant.longitude,
+              },
+              totalOrders: stats.totalOrders,
+              totalSpent: stats.totalSpent,
+              lastOrderDate: lastOrder?.created_at,
+              averageOrderValue: stats.totalSpent / stats.totalOrders,
+              status: 'active'
+            });
+          }
+        } catch (error) {
+          console.error(`Error fetching restaurant ${restaurantId}:`, error);
+        }
+      }
+
+      return customers.sort((a, b) => b.totalSpent - a.totalSpent);
+    } catch (error) {
+      console.error('Error fetching supplier customers:', error);
+      return [];
     }
   }
 
@@ -1178,6 +1265,21 @@ class FirebaseService {
     });
   }
 
+  async getWaiterCalls(userId: string): Promise<WaiterCall[]> {
+    try {
+      const q = query(
+        collection(db, 'waiterCalls'),
+        where('userId', '==', userId),
+        orderBy('timestamp', 'desc')
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WaiterCall));
+    } catch (error) {
+      console.error('Error fetching waiter calls:', error);
+      throw error;
+    }
+  }
+
   // =======================
   // Delivery Integration
   // =======================
@@ -1209,7 +1311,8 @@ class FirebaseService {
 
   async updateDeliveryIntegration(id: string, updates: Partial<DeliveryIntegration>): Promise<void> {
     try {
-      await updateDoc(doc(db, 'deliveryIntegrations', id), updates);
+      const docRef = doc(db, 'deliveryIntegrations', id);
+      await updateDoc(docRef, updates);
     } catch (error) {
       console.error('Error updating delivery integration:', error);
       throw error;
@@ -1232,13 +1335,33 @@ class FirebaseService {
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryOrder));
     } catch (error) {
       console.error('Error fetching delivery orders:', error);
-      throw error;
+      return [];
+    }
+  }
+
+  async getOrderByDeliveryId(deliveryOrderId: string): Promise<Order | null> {
+    try {
+      const q = query(
+        collection(db, 'orders'),
+        where('deliveryInfo.orderId', '==', deliveryOrderId)
+      );
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        return { id: doc.id, ...doc.data() } as Order;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching order by delivery ID:', error);
+      return null;
     }
   }
 
   async updateWebhookEvent(id: string, updates: any): Promise<void> {
     try {
-      await updateDoc(doc(db, 'deliveryWebhookEvents', id), updates);
+      const docRef = doc(db, 'deliveryWebhookEvents', id);
+      await updateDoc(docRef, updates);
     } catch (error) {
       console.error('Error updating webhook event:', error);
       throw error;
@@ -1246,450 +1369,109 @@ class FirebaseService {
   }
 
   // =======================
-  // Supplier Management
+  // Super Admin Functions
   // =======================
   
-  async addSupplier(supplier: Omit<Supplier, 'id'>): Promise<string> {
+  async getAllRestaurants(): Promise<any[]> {
     try {
-      const docRef = await addDoc(collection(db, 'suppliers'), {
-        ...supplier,
-        totalOrders: 0,
-        totalRevenue: 0,
-        averageOrderValue: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-      return docRef.id;
+      const users = await this.getAllUsers();
+      return users.map(user => ({
+        id: user.id,
+        businessName: user.businessName || user.name || 'Unknown',
+        ownerEmail: user.email,
+        ownerName: user.name || 'Unknown',
+        phone: user.phone,
+        status: user.status || 'active',
+        created_at: user.created_at,
+        totalOrders: 0, // Would need to calculate from orders
+        totalRevenue: 0, // Would need to calculate from orders
+      }));
     } catch (error) {
-      console.error('Error adding supplier:', error);
+      console.error('Error fetching all restaurants:', error);
       throw error;
     }
   }
 
-  async getSuppliers(restaurantId: string): Promise<Supplier[]> {
+  async getPlatformStats(): Promise<any> {
     try {
-      const suppliers: Supplier[] = [];
+      const users = await this.getAllUsers();
       
-      // Get global suppliers
-      const globalQuery = query(
-        collection(db, 'suppliers'),
-        where('type', '==', 'global'),
-        where('isActive', '==', true)
-      );
-      const globalSnapshot = await getDocs(globalQuery);
-      globalSnapshot.docs.forEach(doc => {
-        suppliers.push({ id: doc.id, ...doc.data() } as Supplier);
-      });
-      
-      // Get restaurant-specific suppliers
-      const restaurantQuery = query(
-        collection(db, 'suppliers'),
-        where('type', '==', 'restaurant_specific'),
-        where('restaurantId', '==', restaurantId),
-        where('isActive', '==', true)
-      );
-      const restaurantSnapshot = await getDocs(restaurantQuery);
-      restaurantSnapshot.docs.forEach(doc => {
-        suppliers.push({ id: doc.id, ...doc.data() } as Supplier);
-      });
-      
-      // Sort in memory to avoid composite index requirement
-      return suppliers.sort((a, b) => a.name.localeCompare(b.name));
-    } catch (error) {
-      console.error('Error fetching suppliers:', error);
-      throw error;
-    }
-  }
-
-  async getSupplierCustomers(supplierId: string): Promise<RestaurantCustomer[]> {
-    try {
-      // Get all purchase orders for this supplier
-      const orders = await this.getSupplierOrders(supplierId);
-      
-      // Group orders by restaurant to create customer data
-      const customerMap = new Map<string, RestaurantCustomer>();
-      
-      for (const order of orders) {
-        const restaurantId = order.restaurantId;
-        
-        if (!customerMap.has(restaurantId)) {
-          // Get restaurant details
-          const restaurant = await this.getUserProfile(restaurantId);
-          
-          customerMap.set(restaurantId, {
-            id: restaurantId,
-            name: restaurant?.businessName || restaurant?.name || `Restaurant #${restaurantId.slice(0, 8)}`,
-            contactEmail: restaurant?.email || '',
-            contactPhone: restaurant?.phone || '',
-            address: {
-              line1: restaurant?.address || '',
-              line2: '',
-              city: restaurant?.city || '',
-              state: restaurant?.state || '',
-              postalCode: restaurant?.postalCode || '',
-              country: restaurant?.country || 'US',
-            },
-            totalOrders: 0,
-            totalSpent: 0,
-            averageOrderValue: 0,
-            status: 'active'
-          });
-        }
-        
-        const customer = customerMap.get(restaurantId)!;
-        customer.totalOrders++;
-        customer.totalSpent += order.total;
-        customer.lastOrderDate = order.created_at;
-      }
-      
-      // Calculate average order values
-      const customers = Array.from(customerMap.values());
-      customers.forEach(customer => {
-        customer.averageOrderValue = customer.totalOrders > 0 
-          ? customer.totalSpent / customer.totalOrders 
-          : 0;
-      });
-      
-      return customers.sort((a, b) => b.totalSpent - a.totalSpent);
-    } catch (error) {
-      console.error('Error fetching supplier customers:', error);
-      return [];
-    }
-  }
-
-  async getAllSuppliers(): Promise<Supplier[]> {
-    try {
-      const snapshot = await getDocs(collection(db, 'suppliers'));
-      const suppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Supplier));
-      
-      // Sort in memory to avoid composite index requirement
-      return suppliers.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    } catch (error) {
-      console.error('Error fetching all suppliers:', error);
-      throw error;
-    }
-  }
-
-  async updateSupplier(id: string, updates: Partial<Supplier>): Promise<void> {
-    try {
-      await updateDoc(doc(db, 'suppliers', id), {
-        ...updates,
-        updated_at: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error('Error updating supplier:', error);
-      throw error;
-    }
-  }
-
-  async deleteSupplier(id: string): Promise<void> {
-    try {
-      await deleteDoc(doc(db, 'suppliers', id));
-    } catch (error) {
-      console.error('Error deleting supplier:', error);
-      throw error;
-    }
-  }
-
-  // =======================
-  // Supplier Products
-  // =======================
-  
-  async getSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
-    try {
-      const q = query(
-        collection(db, 'supplierProducts'),
-        where('supplierId', '==', supplierId),
-        where('isAvailable', '==', true)
-      );
-      const snapshot = await getDocs(q);
-      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
-      
-      // Sort in memory to avoid composite index requirement
-      return products.sort((a, b) => {
-        if (a.category !== b.category) {
-          return a.category.localeCompare(b.category);
-        }
-        return a.name.localeCompare(b.name);
-      });
-    } catch (error) {
-      console.error('Error fetching supplier products:', error);
-      throw error;
-    }
-  }
-
-  async addSupplierProduct(product: Omit<SupplierProduct, 'id'>): Promise<string> {
-    try {
-      const docRef = await addDoc(collection(db, 'supplierProducts'), {
-        ...product,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-      return docRef.id;
-    } catch (error) {
-      console.error('Error adding supplier product:', error);
-      throw error;
-    }
-  }
-
-  async updateSupplierProduct(id: string, updates: Partial<SupplierProduct>): Promise<void> {
-    try {
-      await updateDoc(doc(db, 'supplierProducts', id), {
-        ...updates,
-        updated_at: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error('Error updating supplier product:', error);
-      throw error;
-    }
-  }
-
-  async deleteSupplierProduct(id: string): Promise<void> {
-    try {
-      await deleteDoc(doc(db, 'supplierProducts', id));
-    } catch (error) {
-      console.error('Error deleting supplier product:', error);
-      throw error;
-    }
-  }
-
-  // =======================
-  // Purchase Orders
-  // =======================
-  
-  async getPurchaseOrders(restaurantId: string): Promise<PurchaseOrder[]> {
-    try {
-      const q = query(
-        collection(db, 'purchaseOrders'),
-        where('restaurantId', '==', restaurantId)
-      );
-      const snapshot = await getDocs(q);
-      const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
-      
-      // Sort in memory to avoid composite index requirement
-      return orders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    } catch (error) {
-      console.error('Error fetching purchase orders:', error);
-      throw error;
-    }
-  }
-
-  async getAllPurchaseOrders(): Promise<PurchaseOrder[]> {
-    try {
-      const q = query(collection(db, 'purchaseOrders'), limit(1000));
-      const snapshot = await getDocs(q);
-      const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
-      
-      // Sort in memory to avoid composite index requirement
-      return orders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    } catch (error) {
-      console.error('Error fetching all purchase orders:', error);
-      throw error;
-    }
-  }
-
-  async addPurchaseOrder(order: Omit<PurchaseOrder, 'id' | 'orderNumber'>): Promise<string> {
-    try {
-      // Get restaurant location information
-      const restaurant = await this.getUserProfile(order.restaurantId);
-      
-      // Generate order number
-      const today = new Date();
-      const dateStr = today.toISOString().split('T')[0];
-      const orderNumber = `PO-${dateStr}-${Date.now().toString().slice(-6)}`;
-      
-      // Add delivery address from restaurant profile if not provided
-      const orderData = {
-        ...order,
-        orderNumber,
-        deliveryAddress: order.deliveryAddress || (restaurant ? {
-          line1: restaurant.address || '',
-          line2: restaurant.addressLine2 || '',
-          city: restaurant.city || '',
-          state: restaurant.state || '',
-          postalCode: restaurant.postalCode || '',
-          country: restaurant.country || 'US',
-          latitude: restaurant.latitude,
-          longitude: restaurant.longitude,
-        } : undefined),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+      // Mock platform stats - in production, you'd calculate these from actual data
+      return {
+        totalRestaurants: users.length,
+        totalUsers: users.length,
+        totalOrders: users.length * 50, // Mock data
+        totalRevenue: users.length * 2500, // Mock data
+        monthlyGrowth: Array.from({ length: 12 }, (_, i) => ({
+          month: new Date(Date.now() - (11 - i) * 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short' }),
+          restaurants: Math.floor(users.length * (0.5 + i * 0.05)),
+          revenue: Math.floor(users.length * 1000 * (0.5 + i * 0.1))
+        }))
       };
-      
-      const docRef = await addDoc(collection(db, 'purchaseOrders'), {
-        ...orderData,
-      });
-      return docRef.id;
     } catch (error) {
-      console.error('Error adding purchase order:', error);
+      console.error('Error calculating platform stats:', error);
       throw error;
     }
   }
 
-  async updatePurchaseOrder(id: string, updates: Partial<PurchaseOrder>): Promise<void> {
+  async createRestaurant(data: any): Promise<string> {
     try {
-      await updateDoc(doc(db, 'purchaseOrders', id), {
+      // This would create a new restaurant account
+      // Implementation depends on your user creation flow
+      const docRef = await addDoc(collection(db, 'users'), {
+        ...data,
+        created_at: new Date().toISOString(),
+        status: 'active'
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error creating restaurant:', error);
+      throw error;
+    }
+  }
+
+  async updateRestaurant(id: string, updates: any): Promise<void> {
+    try {
+      const docRef = doc(db, 'users', id);
+      await updateDoc(docRef, {
         ...updates,
         updated_at: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Error updating purchase order:', error);
+      console.error('Error updating restaurant:', error);
       throw error;
     }
   }
 
-  // =======================
-  // Supplier Authentication
-  // =======================
-  
-  async createSupplierUser(userData: {
-    email: string;
-    name: string;
-    supplierId: string;
-    role: 'supplier_admin' | 'supplier_staff';
-  }): Promise<string> {
+  async deleteRestaurant(id: string): Promise<void> {
     try {
-      const docRef = await addDoc(collection(db, 'supplierUsers'), {
-        ...userData,
-        isActive: true,
-        created_at: new Date().toISOString(),
+      await deleteDoc(doc(db, 'users', id));
+    } catch (error) {
+      console.error('Error deleting restaurant:', error);
+      throw error;
+    }
+  }
+
+  async updateUserStatus(userId: string, isActive: boolean): Promise<void> {
+    try {
+      const docRef = doc(db, 'users', userId);
+      await updateDoc(docRef, {
+        status: isActive ? 'active' : 'inactive',
+        updated_at: new Date().toISOString(),
       });
-      return docRef.id;
     } catch (error) {
-      console.error('Error creating supplier user:', error);
-      throw error;
-    }
-  }
-  // =======================
-  // Supplier Users (for supplier portal)
-  // =======================
-  
-  async getSupplierUser(userId: string): Promise<SupplierUser | null> {
-    try {
-      const userDoc = await getDoc(doc(db, 'supplierUsers', userId));
-      if (userDoc.exists()) {
-        return { id: userDoc.id, ...userDoc.data() } as SupplierUser;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error fetching supplier user:', error);
+      console.error('Error updating user status:', error);
       throw error;
     }
   }
 
-  async getSupplierOrders(supplierId: string): Promise<PurchaseOrder[]> {
+  async resetUserPassword(email: string): Promise<void> {
     try {
-      const q = query(
-        collection(db, 'purchaseOrders'),
-        where('supplierId', '==', supplierId),
-        orderBy('created_at', 'desc')
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
+      // This would typically use Firebase Auth's password reset
+      // For now, we'll just log it
+      console.log('Password reset requested for:', email);
     } catch (error) {
-      console.error('Error fetching supplier orders:', error);
-      throw error;
-    }
-  }
-
-  async getSupplierOrders(supplierId: string): Promise<PurchaseOrder[]> {
-    try {
-      const q = query(
-        collection(db, 'purchaseOrders'),
-        where('supplierId', '==', supplierId)
-      );
-      const snapshot = await getDocs(q);
-      const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
-      
-      // Sort in memory to avoid composite index requirement
-      return orders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    } catch (error) {
-      console.error('Error fetching supplier orders:', error);
-      throw error;
-    }
-  }
-
-  async getSupplierCustomers(supplierId: string): Promise<RestaurantCustomer[]> {
-    try {
-      // Get all purchase orders for this supplier
-      const orders = await this.getSupplierOrders(supplierId);
-      
-      // Group by restaurant
-      const customerStats: Record<string, {
-        orders: PurchaseOrder[];
-        totalSpent: number;
-        lastOrderDate?: string;
-      }> = {};
-
-      orders.forEach(order => {
-        if (!customerStats[order.restaurantId]) {
-          customerStats[order.restaurantId] = {
-            orders: [],
-            totalSpent: 0
-          };
-        }
-        customerStats[order.restaurantId].orders.push(order);
-        customerStats[order.restaurantId].totalSpent += order.total;
-        
-        if (!customerStats[order.restaurantId].lastOrderDate || 
-            order.created_at > customerStats[order.restaurantId].lastOrderDate!) {
-          customerStats[order.restaurantId].lastOrderDate = order.created_at;
-        }
-      });
-
-      // Get restaurant details and create customer objects
-      const customers: RestaurantCustomer[] = [];
-      
-      for (const [restaurantId, stats] of Object.entries(customerStats)) {
-        try {
-          const restaurant = await this.getUserProfile(restaurantId);
-          if (restaurant) {
-            customers.push({
-              id: restaurantId,
-              name: restaurant.businessName || restaurant.name || 'Unknown Restaurant',
-              contactEmail: restaurant.email,
-              contactPhone: restaurant.phone || '',
-              address: {
-                line1: restaurant.address || '',
-                line2: '',
-                city: restaurant.city || '',
-                state: restaurant.state || '',
-                postalCode: restaurant.postalCode || '',
-                country: restaurant.country || 'US',
-                latitude: restaurant.latitude,
-                longitude: restaurant.longitude,
-              },
-              totalOrders: stats.orders.length,
-              totalSpent: stats.totalSpent,
-              lastOrderDate: stats.lastOrderDate,
-              averageOrderValue: stats.totalSpent / stats.orders.length,
-              status: 'active'
-            });
-          }
-        } catch (error) {
-          console.error(`Error fetching restaurant ${restaurantId}:`, error);
-        }
-      }
-
-      return customers.sort((a, b) => b.totalSpent - a.totalSpent);
-    } catch (error) {
-      console.error('Error fetching supplier customers:', error);
-      throw error;
-    }
-  }
-
-  // =======================
-  // File Upload
-  // =======================
-  
-  async uploadFile(file: File, path: string): Promise<string> {
-    try {
-      const storageRef = ref(storage, path);
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      return downloadURL;
-    } catch (error) {
-      console.error('Error uploading file:', error);
+      console.error('Error resetting user password:', error);
       throw error;
     }
   }
