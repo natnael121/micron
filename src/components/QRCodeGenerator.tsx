@@ -7,6 +7,7 @@ interface QRCodeGeneratorProps {
   userId: string;
   businessName: string;
   numberOfTables: number;
+  businessLogo?: string;
   onClose: () => void;
 }
 
@@ -14,6 +15,7 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
   userId,
   businessName,
   numberOfTables,
+  businessLogo,
   onClose,
 }) => {
   const [selectedTables, setSelectedTables] = useState<number[]>([]);

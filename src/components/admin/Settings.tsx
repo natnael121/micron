@@ -1014,6 +1014,7 @@ export const Settings: React.FC = () => {
           userId={user?.id || ''}
           businessName={user?.businessName || 'Restaurant'}
           numberOfTables={formData.numberOfTables}
+          businessLogo={formData.logo}
           onClose={() => setShowQRGenerator(false)}
         />
       )}
