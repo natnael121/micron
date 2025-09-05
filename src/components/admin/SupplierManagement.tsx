@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { supplierService } from '../../services/supplierService';
+import { firebaseService } from '../../services/firebase';
 import { Supplier, SupplierProduct, PurchaseOrder } from '../../types/supplier';
 import { SupplierModal } from './SupplierModal';
 import { ProductModal } from './ProductModal';
