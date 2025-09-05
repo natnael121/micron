@@ -1101,6 +1101,7 @@ class FirebaseService {
       const q = query(
         collection(db, 'supplierProducts'),
         where('supplierId', '==', supplierId),
+      )
       const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
       
       console.log('Firebase: Raw products loaded:', products.length);
