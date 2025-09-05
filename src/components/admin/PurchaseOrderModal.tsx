@@ -47,6 +47,8 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
       
       // Use Firebase service directly to get all products for this supplier
       const { firebaseService } = await import('../../services/firebase');
+      
+      // Query the supplierProducts collection directly with the correct supplierId
       const productsData = await firebaseService.getAllSupplierProducts(supplier.id);
       
       console.log('Products loaded:', productsData.length);

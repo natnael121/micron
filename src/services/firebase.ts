@@ -1070,13 +1070,10 @@ class FirebaseService {
       const q = query(
         collection(db, 'supplierProducts'),
         where('supplierId', '==', supplierId),
-        where('supplierId', '==', supplierId)
+        where('isAvailable', '==', true)
       );
       const snapshot = await getDocs(q);
-      const allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
-      
-      // Filter available products in memory
-      const products = allProducts.filter(product => product.isAvailable);
+      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
       
       console.log('Firebase: Available products loaded:', products.length);
       

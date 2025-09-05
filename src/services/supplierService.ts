@@ -222,7 +222,19 @@ class SupplierService {
   async getAllSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
     try {
       console.log('Loading all products for supplier:', supplierId);
-      return await firebaseService.getAllSupplierProducts(supplierId);
+      
+      // Query supplierProducts collection directly
+      const q = query(
+        collection(db, 'supplierProducts'),
+        where('supplierId', '==', supplierId),
+        orderBy('category'),
+        orderBy('name')
+      );
+      const snapshot = await getDocs(q);
+      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
+      
+      console.log('SupplierService: Products loaded:', products.length);
+      return products;
     } catch (error) {
       console.error('Error fetching all supplier products:', error);
       throw error;
@@ -232,7 +244,20 @@ class SupplierService {
   async getSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
     try {
       console.log('Loading available products for supplier:', supplierId);
-      return await firebaseService.getSupplierProducts(supplierId);
+      
+      // Query supplierProducts collection for available products only
+      const q = query(
+        collection(db, 'supplierProducts'),
+        where('supplierId', '==', supplierId),
+        where('isAvailable', '==', true),
+        orderBy('category'),
+        orderBy('name')
+      );
+      const snapshot = await getDocs(q);
+      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
+      
+      console.log('SupplierService: Available products loaded:', products.length);
+      return products;
     } catch (error) {
       console.error('Error fetching supplier products:', error);
       throw error;

@@ -4,9 +4,9 @@
        setLoadingProducts(true);
        try {
          console.log('Loading products for supplier:', supplier.id);
--        const productsData = await supplierService.getAllSupplierProducts(supplier.id);
-+        // Use Firebase service directly to ensure we get all products
-+        const { firebaseService } = await import('../../services/firebase');
+        // Use supplier service to get all products
+        const { supplierService } = await import('../../services/supplierService');
+        const productsData = await supplierService.getAllSupplierProducts(supplier.id);
 +        const productsData = await firebaseService.getAllSupplierProducts(supplier.id);
          console.log('Products loaded for supplier detail:', productsData.length);
          setProducts(productsData);
@@ -21,8 +21,9 @@
 -        } catch (fallbackError) {
 -          console.error('Fallback failed:', fallbackError);
 -          setProducts([]);
--        }
-+        setProducts([]);
+        // Use supplier service for orders
+        const { supplierService } = await import('../../services/supplierService');
+        const ordersData = await supplierService.getSupplierOrders(supplier.id);
        } finally {
          setLoadingProducts(false);
        }

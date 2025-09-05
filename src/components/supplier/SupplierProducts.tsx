@@ -37,8 +37,7 @@ export const SupplierProducts: React.FC = () => {
       console.log('Loading products for supplier:', supplierUser.supplierId);
       
       // Use Firebase service directly to ensure consistency
-      const { firebaseService } = await import('../../services/firebase');
-      const productsData = await firebaseService.getAllSupplierProducts(supplierUser.supplierId);
+      const productsData = await supplierService.getAllSupplierProducts(supplierUser.supplierId);
       
       console.log('Products loaded:', productsData.length);
       setProducts(productsData);
