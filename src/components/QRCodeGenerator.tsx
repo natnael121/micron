@@ -6,6 +6,7 @@ import jsPDF from 'jspdf';
 interface QRCodeGeneratorProps {
   userId: string;
   businessName: string;
+  businessLogo?: string; // logo as base64 or URL
   numberOfTables: number;
   onClose: () => void;
 }
@@ -13,6 +14,7 @@ interface QRCodeGeneratorProps {
 export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
   userId,
   businessName,
+  businessLogo,
   numberOfTables,
   onClose,
 }) => {
@@ -47,10 +49,7 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
       const qrDataURL = await QRCode.toDataURL(url, {
         width: 300,
         margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF',
-        },
+        color: { dark: '#000000', light: '#FFFFFF' },
       });
       return qrDataURL;
     } catch (error) {
@@ -62,7 +61,6 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
   const generateAllQRCodes = async () => {
     setGenerating(true);
     const codes: { [key: number]: string } = {};
-
     try {
       for (const tableNumber of selectedTables) {
         codes[tableNumber] = await generateQRCode(tableNumber);
@@ -76,127 +74,154 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
     }
   };
 
- const downloadAllQRCodes = async (format: 'png' | 'pdf') => {
-  if (selectedTables.length === 0) return;
-  setGenerating(true);
+  const downloadAllQRCodes = async (format: 'png' | 'pdf') => {
+    if (selectedTables.length === 0) return;
+    setGenerating(true);
 
-  try {
-    if (format === 'png') {
-      for (const tableNumber of selectedTables) {
-        await downloadSingleQR(tableNumber, 'png');
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    } else {
-      // Landscape A4
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-      });
-
-      const pageWidth = pdf.internal.pageSize.getWidth();   // 297mm
-      const pageHeight = pdf.internal.pageSize.getHeight(); // 210mm
-
-      const cols = 3;
-      const rows = 2;
-      const slotWidth = pageWidth / cols;
-      const slotHeight = pageHeight / rows;
-
-      // Repeat tables if less than 6
-      let tablesToPrint = [...selectedTables];
-      while (tablesToPrint.length < 6) {
-        tablesToPrint = tablesToPrint.concat(selectedTables);
-      }
-      tablesToPrint = tablesToPrint.slice(0, Math.ceil(selectedTables.length / 6) * 6);
-
-      for (let i = 0; i < tablesToPrint.length; i++) {
-        if (i > 0 && i % (cols * rows) === 0) {
-          pdf.addPage();
+    try {
+      if (format === 'png') {
+        for (const tableNumber of selectedTables) {
+          await downloadSingleQR(tableNumber, 'png');
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
+      } else {
+        // Landscape A4
+        const pdf = new jsPDF({
+          orientation: 'landscape',
+          unit: 'mm',
+          format: 'a4',
+        });
 
-        const pageIndex = i % (cols * rows);
-        const col = pageIndex % cols;
-        const row = Math.floor(pageIndex / cols);
+        const pageWidth = pdf.internal.pageSize.getWidth(); // 297mm
+        const pageHeight = pdf.internal.pageSize.getHeight(); // 210mm
 
-        const x = col * slotWidth;
-        const y = row * slotHeight;
+        const cols = 3;
+        const rows = 2;
+        const slotWidth = pageWidth / cols;
+        const slotHeight = pageHeight / rows;
 
-        const tableNumber = tablesToPrint[i];
-        const qrDataURL = qrCodes[tableNumber] || await generateQRCode(tableNumber);
+        // Repeat tables until grid full
+        let tablesToPrint = [...selectedTables];
+        while (tablesToPrint.length < 6) {
+          tablesToPrint = tablesToPrint.concat(selectedTables);
+        }
+        tablesToPrint = tablesToPrint.slice(
+          0,
+          Math.ceil(selectedTables.length / 6) * 6
+        );
 
-        // Outer card background
-        pdf.setFillColor(255, 255, 255);
-        pdf.roundedRect(x + 5, y + 5, slotWidth - 10, slotHeight - 10, 6, 6, 'F');
+        for (let i = 0; i < tablesToPrint.length; i++) {
+          if (i > 0 && i % (cols * rows) === 0) {
+            pdf.addPage();
+          }
 
-        // Split card into left (logo bg) and right (QR code)
-        const halfWidth = (slotWidth - 20) / 2;
-        const leftX = x + 10;
-        const rightX = leftX + halfWidth;
-        const innerY = y + 10;
-        const innerH = slotHeight - 20;
+          const pageIndex = i % (cols * rows);
+          const col = pageIndex % cols;
+          const row = Math.floor(pageIndex / cols);
 
-        // Left side with logo background
-        if (businessLogo) {
-          pdf.addImage(
-            businessLogo,
-            'PNG',
-            leftX,
-            innerY,
-            halfWidth,
-            innerH
-          );
-          // Mask overlay
+          const x = col * slotWidth;
+          const y = row * slotHeight;
+
+          const tableNumber = tablesToPrint[i];
+          const qrDataURL =
+            qrCodes[tableNumber] || (await generateQRCode(tableNumber));
+
+          // Card background
           pdf.setFillColor(255, 255, 255);
-          pdf.setDrawColor(255, 255, 255);
-          pdf.setGState(new pdf.GState({ opacity: 0.7 })); // semi-transparent
-          pdf.rect(leftX, innerY, halfWidth, innerH, 'F');
-          pdf.setGState(new pdf.GState({ opacity: 1 })); // reset
-        } else {
-          // Fallback solid color if no logo
-          pdf.setFillColor(34, 197, 94);
-          pdf.roundedRect(leftX, innerY, halfWidth, innerH, 0, 0, 'F');
+          pdf.roundedRect(
+            x + 5,
+            y + 5,
+            slotWidth - 10,
+            slotHeight - 10,
+            6,
+            6,
+            'F'
+          );
+
+          const halfWidth = (slotWidth - 20) / 2;
+          const leftX = x + 10;
+          const rightX = leftX + halfWidth;
+          const innerY = y + 10;
+          const innerH = slotHeight - 20;
+
+          // Left side: logo background
+          if (businessLogo) {
+            pdf.addImage(businessLogo, 'PNG', leftX, innerY, halfWidth, innerH);
+
+            // mask overlay
+            (pdf as any).setGState(new (pdf as any).GState({ opacity: 0.7 }));
+            pdf.setFillColor(255, 255, 255);
+            pdf.rect(leftX, innerY, halfWidth, innerH, 'F');
+            (pdf as any).setGState(new (pdf as any).GState({ opacity: 1 }));
+          } else {
+            pdf.setFillColor(34, 197, 94);
+            pdf.rect(leftX, innerY, halfWidth, innerH, 'F');
+          }
+
+          // Text overlay
+          pdf.setTextColor(34, 197, 94);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(14);
+          pdf.text('Welcome!', leftX + halfWidth / 2, innerY + 20, {
+            align: 'center',
+          });
+
+          pdf.setTextColor(0, 0, 0);
+          pdf.setFontSize(10);
+          pdf.text('Scan to view our menu', leftX + halfWidth / 2, innerY + 35, {
+            align: 'center',
+          });
+
+          pdf.setFontSize(12);
+          pdf.text(
+            businessName.toUpperCase(),
+            leftX + halfWidth / 2,
+            innerY + innerH - 25,
+            { align: 'center' }
+          );
+
+          pdf.setFontSize(16);
+          pdf.setTextColor(34, 197, 94);
+          pdf.text(
+            `TABLE ${tableNumber}`,
+            leftX + halfWidth / 2,
+            innerY + innerH - 10,
+            { align: 'center' }
+          );
+
+          // Right side: QR code
+          const qrSize = halfWidth - 30;
+          const qrX = rightX + (halfWidth - qrSize) / 2;
+          const qrY = innerY + (innerH - qrSize) / 2;
+
+          pdf.setFillColor(255, 255, 255);
+          pdf.roundedRect(qrX - 5, qrY - 5, qrSize + 10, qrSize + 10, 5, 5, 'FD');
+          pdf.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize);
         }
 
-        // Text on top of logo
-        pdf.setTextColor(34, 197, 94);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(14);
-        pdf.text('Welcome!', leftX + halfWidth / 2, innerY + 20, { align: 'center' });
-
-        pdf.setTextColor(0, 0, 0);
-        pdf.setFontSize(10);
-        pdf.text('Scan to view our menu', leftX + halfWidth / 2, innerY + 35, { align: 'center' });
-
-        // Business name
-        pdf.setFontSize(12);
-        pdf.setTextColor(0, 0, 0);
-        pdf.text(businessName.toUpperCase(), leftX + halfWidth / 2, innerY + innerH - 25, { align: 'center' });
-
-        // Table number big + bold
-        pdf.setFontSize(16);
-        pdf.setTextColor(34, 197, 94);
-        pdf.text(`TABLE ${tableNumber}`, leftX + halfWidth / 2, innerY + innerH - 10, { align: 'center' });
-
-        // Right side: QR code box
-        const qrSize = halfWidth - 30;
-        const qrX = rightX + (halfWidth - qrSize) / 2;
-        const qrY = innerY + (innerH - qrSize) / 2;
-
-        pdf.setFillColor(255, 255, 255);
-        pdf.roundedRect(qrX - 5, qrY - 5, qrSize + 10, qrSize + 10, 5, 5, 'FD');
-        pdf.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize);
+        pdf.save(
+          `${businessName.toLowerCase().replace(/\s+/g, '-')}-qr-codes.pdf`
+        );
       }
-
-      pdf.save(`${businessName.toLowerCase().replace(/\s+/g, '-')}-qr-codes.pdf`);
+    } catch (error) {
+      console.error('Error downloading QR codes:', error);
+      alert('Failed to download QR codes');
+    } finally {
+      setGenerating(false);
     }
-  } catch (error) {
-    console.error('Error downloading QR codes:', error);
-    alert('Failed to download QR codes');
-  } finally {
-    setGenerating(false);
-  }
-};
+  };
 
+  const downloadSingleQR = async (tableNumber: number, format: 'png') => {
+    const qrDataURL =
+      qrCodes[tableNumber] || (await generateQRCode(tableNumber));
+
+    if (format === 'png') {
+      const link = document.createElement('a');
+      link.href = qrDataURL;
+      link.download = `${businessName}-table-${tableNumber}.png`;
+      link.click();
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -205,20 +230,29 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <QrCode className="w-6 h-6 text-blue-600" />
-              <h2 className="text-xl font-bold text-gray-900">QR Code Generator</h2>
+              <h2 className="text-xl font-bold text-gray-900">
+                QR Code Generator
+              </h2>
             </div>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700"
+            >
               <X className="w-6 h-6" />
             </button>
           </div>
-          <p className="text-gray-600 mt-2">Generate QR codes for your restaurant tables</p>
+          <p className="text-gray-600 mt-2">
+            Generate QR codes for your restaurant tables
+          </p>
         </div>
 
         <div className="p-6 space-y-6">
           {/* Table Selection */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Select Tables</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Select Tables
+              </h3>
               <div className="flex items-center space-x-4">
                 <label className="flex items-center">
                   <input
@@ -289,14 +323,21 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
           {/* Generated QR Codes Preview */}
           {Object.keys(qrCodes).length > 0 && (
             <div className="pt-6 border-t">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Generated QR Codes</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Generated QR Codes
+              </h3>
               <div
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                 ref={qrContainerRef}
               >
                 {Object.entries(qrCodes).map(([tableNumber, qrDataURL]) => (
-                  <div key={tableNumber} className="bg-gray-50 p-4 rounded-lg text-center">
-                    <h4 className="font-semibold text-gray-900 mb-2">Table {tableNumber}</h4>
+                  <div
+                    key={tableNumber}
+                    className="bg-gray-50 p-4 rounded-lg text-center"
+                  >
+                    <h4 className="font-semibold text-gray-900 mb-2">
+                      Table {tableNumber}
+                    </h4>
                     <img
                       src={qrDataURL}
                       alt={`QR Code for Table ${tableNumber}`}
