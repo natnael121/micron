@@ -45,24 +45,9 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
       setLoading(true);
       console.log('Loading products for supplier:', supplier.id, supplier.name);
       
-      // First try to get all products
-      let productsData: SupplierProduct[] = [];
-      
-      try {
-        productsData = await supplierService.getAllSupplierProducts(supplier.id);
-        console.log('All products loaded:', productsData.length);
-      } catch (error) {
-        console.error('Error loading all products:', error);
-        
-        // Fallback to available products only
-        try {
-          productsData = await supplierService.getSupplierProducts(supplier.id);
-          console.log('Available products loaded as fallback:', productsData.length);
-        } catch (fallbackError) {
-          console.error('Fallback also failed:', fallbackError);
-          productsData = [];
-        }
-      }
+      // Use Firebase service directly to get all products for this supplier
+      const { firebaseService } = await import('../../services/firebase');
+      const productsData = await firebaseService.getAllSupplierProducts(supplier.id);
       
       console.log('Products loaded:', productsData.length);
       setProducts(productsData);
@@ -75,6 +60,11 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
   };
 
   const addToOrder = (product: SupplierProduct) => {
+    if (!product.isAvailable) {
+      alert('This product is currently unavailable');
+      return;
+    }
+    
     const existingItem = orderItems.find(item => item.productId === product.id);
     
     if (existingItem) {
@@ -173,10 +163,10 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
     
     const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
     
-    return matchesSearch && matchesCategory && product.isAvailable;
+    return matchesSearch && matchesCategory;
   });
 
-  const categories = [...new Set(products.map(p => p.category))];
+  const categories = [...new Set(products.map(p => p.category))].filter(Boolean).sort();
   const { subtotal, tax, shipping, total } = calculateTotals();
 
   return (
@@ -223,6 +213,11 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
                     <option key={category} value={category}>{category}</option>
                   ))}
                 </select>
+                {categories.length === 0 && !loading && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    No categories found. Products may not have categories assigned.
+                  </p>
+                )}
               </div>
 
               {/* Products List */}
@@ -244,11 +239,19 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
                             <span>${product.unitPrice.toFixed(2)}/{product.unit}</span>
                             <span>Min: {product.minimumOrderQuantity} {product.unit}</span>
                             {product.sku && <span>SKU: {product.sku}</span>}
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              product.isAvailable 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {product.isAvailable ? 'Available' : 'Unavailable'}
+                            </span>
                           </div>
                         </div>
                         <button
                           onClick={() => addToOrder(product)}
-                          className="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition-colors"
+                          disabled={!product.isAvailable}
+                          className="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                         >
                           <Plus className="w-4 h-4" />
                         </button>
@@ -260,7 +263,16 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
                 {!loading && filteredProducts.length === 0 && (
                   <div className="text-center py-8">
                     <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">No products found</p>
+                    <p className="text-gray-600">
+                      {searchTerm || selectedCategory !== 'all' 
+                        ? 'No products match your filters' 
+                        : 'No products available from this supplier'}
+                    </p>
+                    {!searchTerm && selectedCategory === 'all' && (
+                      <p className="text-sm text-gray-500 mt-2">
+                        The supplier may need to add products to their catalog first
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -332,6 +344,22 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
               {/* Order Details */}
               <div className="space-y-4">
                 <div>
+                
+                {/* Debug Info */}
+                {!loading && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-sm text-blue-800">
+                      <strong>Debug Info:</strong> Found {products.length} total products 
+                      ({products.filter(p => p.isAvailable).length} available, {products.filter(p => !p.isAvailable).length} unavailable)
+                      {categories.length > 0 && ` across ${categories.length} categories`}
+                    </p>
+                    {categories.length > 0 && (
+                      <p className="text-xs text-blue-700 mt-1">
+                        Categories: {categories.join(', ')}
+                      </p>
+                    )}
+                  </div>
+                )}
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Requested Delivery Date
                   </label>

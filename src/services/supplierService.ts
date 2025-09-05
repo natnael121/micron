@@ -222,60 +222,20 @@ class SupplierService {
   async getAllSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
     try {
       console.log('Loading all products for supplier:', supplierId);
-      const q = query(
-        collection(db, 'supplierProducts'),
-        where('supplierId', '==', supplierId)
-      );
-      const snapshot = await getDocs(q);
-      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
-      
-      console.log('Raw products from Firestore:', products.length);
-      
-      // Sort in memory to avoid composite index requirement
-      const sortedProducts = products.sort((a, b) => {
-        if (a.category !== b.category) {
-          return a.category.localeCompare(b.category);
-        }
-        return a.name.localeCompare(b.name);
-      });
-      
-      console.log('Sorted products:', sortedProducts.length);
-      return sortedProducts;
+      return await firebaseService.getAllSupplierProducts(supplierId);
     } catch (error) {
       console.error('Error fetching all supplier products:', error);
-      return []; // Return empty array instead of throwing to prevent UI crashes
+      throw error;
     }
   }
 
   async getSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
     try {
       console.log('Loading available products for supplier:', supplierId);
-      // First get all products, then filter available ones to avoid composite index issues
-      const q = query(
-        collection(db, 'supplierProducts'),
-        where('supplierId', '==', supplierId)
-      );
-      const snapshot = await getDocs(q);
-      const allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
-      
-      // Filter available products in memory
-      const products = allProducts.filter(product => product.isAvailable);
-      
-      console.log('Available products from Firestore:', products.length);
-      
-      // Sort in memory to avoid composite index requirement
-      const sortedProducts = products.sort((a, b) => {
-        if (a.category !== b.category) {
-          return a.category.localeCompare(b.category);
-        }
-        return a.name.localeCompare(b.name);
-      });
-      
-      console.log('Sorted available products:', sortedProducts.length);
-      return sortedProducts;
+      return await firebaseService.getSupplierProducts(supplierId);
     } catch (error) {
       console.error('Error fetching supplier products:', error);
-      return []; // Return empty array instead of throwing to prevent UI crashes
+      throw error;
     }
   }
 

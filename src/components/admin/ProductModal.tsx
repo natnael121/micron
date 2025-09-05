@@ -137,11 +137,15 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       console.log('Product data:', productData);
 
       if (product) {
-        await supplierService.updateSupplierProduct(product.id, productData);
+        // Use Firebase service directly for consistency
+        const { firebaseService } = await import('../../services/firebase');
+        await firebaseService.updateSupplierProduct(product.id, productData);
         console.log('Product updated successfully');
         onSave({ ...product, ...productData });
       } else {
-        const id = await supplierService.addSupplierProduct(productData);
+        // Use Firebase service directly for consistency
+        const { firebaseService } = await import('../../services/firebase');
+        const id = await firebaseService.addSupplierProduct(productData);
         console.log('Product created with ID:', id);
         onSave({ id, ...productData } as SupplierProduct);
       }

@@ -1060,7 +1060,7 @@ class FirebaseService {
       return sortedProducts;
     } catch (error) {
       console.error('Firebase: Error fetching all supplier products:', error);
-      return [];
+      throw error; // Let the caller handle the error
     }
   }
 
@@ -1098,12 +1098,9 @@ class FirebaseService {
 
   async getAllSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
     try {
-      console.log('Firebase: Loading all products for supplier:', supplierId);
       const q = query(
         collection(db, 'supplierProducts'),
-        where('supplierId', '==', supplierId)
-      );
-      const snapshot = await getDocs(q);
+        where('supplierId', '==', supplierId),
       const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
       
       console.log('Firebase: Raw products loaded:', products.length);

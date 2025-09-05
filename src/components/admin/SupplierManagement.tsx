@@ -56,7 +56,8 @@ export const SupplierManagement: React.FC = () => {
       let ordersData: PurchaseOrder[] = [];
       
       try {
-        suppliersData = await supplierService.getSuppliers(user.id);
+        // Use Firebase service directly to ensure we get all suppliers
+        suppliersData = await firebaseService.getSuppliers(user.id);
         console.log('Suppliers loaded:', suppliersData.length);
       } catch (error) {
         console.error('Error loading suppliers:', error);
@@ -64,7 +65,8 @@ export const SupplierManagement: React.FC = () => {
       }
       
       try {
-        ordersData = await supplierService.getPurchaseOrders(user.id);
+        // Use Firebase service directly for purchase orders
+        ordersData = await firebaseService.getPurchaseOrders(user.id);
         console.log('Purchase orders loaded:', ordersData.length);
       } catch (error) {
         console.error('Error loading purchase orders:', error);
