@@ -1,8 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { X, Download, QrCode, FileImage, FileText, Check } from 'lucide-react';
+import { X, QrCode, FileImage, FileText } from 'lucide-react';
 import QRCode from 'qrcode';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 interface QRCodeGeneratorProps {
   userId: string;
@@ -26,7 +25,7 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
   const tables = Array.from({ length: numberOfTables }, (_, i) => i + 1);
 
   const handleTableSelect = (tableNumber: number) => {
-    setSelectedTables(prev => 
+    setSelectedTables(prev =>
       prev.includes(tableNumber)
         ? prev.filter(t => t !== tableNumber)
         : [...prev, tableNumber]
@@ -50,8 +49,8 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
         margin: 2,
         color: {
           dark: '#000000',
-          light: '#FFFFFF'
-        }
+          light: '#FFFFFF',
+        },
       });
       return qrDataURL;
     } catch (error) {
@@ -63,7 +62,7 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
   const generateAllQRCodes = async () => {
     setGenerating(true);
     const codes: { [key: number]: string } = {};
-    
+
     try {
       for (const tableNumber of selectedTables) {
         codes[tableNumber] = await generateQRCode(tableNumber);
@@ -77,168 +76,117 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
     }
   };
 
-  const downloadSingleQR = async (tableNumber: number, format: 'png' | 'pdf') => {
-    try {
-      const qrDataURL = qrCodes[tableNumber] || await generateQRCode(tableNumber);
-      
-      if (format === 'png') {
-        const link = document.createElement('a');
-        link.download = `table-${tableNumber}-qr.png`;
-        link.href = qrDataURL;
-        link.click();
-      } else {
-        // A6 size: 105 x 148 mm (landscape)
-        const pdf = new jsPDF({
-          orientation: 'landscape',
-          unit: 'mm',
-          format: [148, 105]
-        });
-        
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        
-        // Background color (light green)
-        pdf.setFillColor(240, 253, 244); // Very light green
-        pdf.rect(0, 0, pageWidth, pageHeight, 'F');
-        
-        // Left side - Business branding (60% of width)
-        const leftWidth = pageWidth * 0.58;
-        
-        // Business logo area (green background)
-        pdf.setFillColor(34, 197, 94); // Green color
-        pdf.roundedRect(15, 20, 35, 35, 5, 5, 'F');
-        
-        // Logo text (placeholder)
-        pdf.setTextColor(255, 255, 255);
-        pdf.setFontSize(12);
-        pdf.setFont('helvetica', 'bold');
-        const logoText = businessName.charAt(0).toUpperCase();
-        pdf.text(logoText, 32.5, 40, { align: 'center' });
-        
-        // Business name
-        pdf.setTextColor(34, 197, 94);
-        pdf.setFontSize(18);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(businessName.toUpperCase(), 15, 65);
-        
-        // Table number with styling
-        pdf.setTextColor(107, 114, 128);
-        pdf.setFontSize(12);
-        pdf.setFont('helvetica', 'normal');
-        pdf.text(`TABLE ${tableNumber}`, 15, 75);
-        
-        // Decorative line
-        pdf.setDrawColor(34, 197, 94);
-        pdf.setLineWidth(2);
-        pdf.line(15, 80, 50, 80);
-        
-        // Right side - QR code section
-        const qrSize = 55;
-        const qrX = leftWidth + 15;
-        const qrY = (pageHeight - qrSize) / 2 - 5;
-        
-        // QR code background (white with border)
-        pdf.setFillColor(255, 255, 255);
-        pdf.setDrawColor(229, 231, 235);
-        pdf.setLineWidth(1);
-        pdf.roundedRect(qrX - 5, qrY - 5, qrSize + 10, qrSize + 10, 8, 8, 'FD');
-        
-        // QR code
-        pdf.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize);
-        
-        // Welcome text above QR
-        pdf.setTextColor(34, 197, 94);
-        pdf.setFontSize(14);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Welcome!', qrX + (qrSize / 2), qrY - 15, { align: 'center' });
-        
-        // Subtitle below QR
-        pdf.setTextColor(107, 114, 128);
-        pdf.setFontSize(9);
-        pdf.setFont('helvetica', 'normal');
-        pdf.text('Our menu on', qrX + (qrSize / 2), qrY + qrSize + 12, { align: 'center' });
-        pdf.text('your smartphone', qrX + (qrSize / 2), qrY + qrSize + 20, { align: 'center' });
-        
-        pdf.save(`table-${tableNumber}-qr.pdf`);
-      }
-    } catch (error) {
-      console.error('Error downloading QR code:', error);
-      alert('Failed to download QR code');
-    }
-  };
-
   const downloadAllQRCodes = async (format: 'png' | 'pdf') => {
     if (selectedTables.length === 0) return;
-    
     setGenerating(true);
-    
+
     try {
       if (format === 'png') {
-        // Create a zip-like download by downloading each image
         for (const tableNumber of selectedTables) {
-          await downloadSingleQR(tableNumber, 'png');
-          // Small delay to prevent browser blocking
+          const qrDataURL = qrCodes[tableNumber] || (await generateQRCode(tableNumber));
+          const link = document.createElement('a');
+          link.download = `table-${tableNumber}-qr.png`;
+          link.href = qrDataURL;
+          link.click();
           await new Promise(resolve => setTimeout(resolve, 100));
         }
       } else {
-        // Create a single PDF with all QR codes
-        const pdf = new jsPDF();
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        
+        // --- PDF WITH 6 CARDS PER PAGE ---
+        const pdf = new jsPDF({
+          orientation: 'landscape',
+          unit: 'mm',
+          format: 'a4',
+        });
+
+        const pageWidth = pdf.internal.pageSize.getWidth(); // 297mm
+        const pageHeight = pdf.internal.pageSize.getHeight(); // 210mm
+        const cols = 3;
+        const rows = 2;
+        const slotWidth = pageWidth / cols;
+        const slotHeight = pageHeight / rows;
+
         for (let i = 0; i < selectedTables.length; i++) {
-          const tableNumber = selectedTables[i];
-          
-          if (i > 0) {
+          if (i > 0 && i % (cols * rows) === 0) {
             pdf.addPage();
           }
-          
-          const pageWidth = pdf.internal.pageSize.getWidth();
-          const pageHeight = pdf.internal.pageSize.getHeight();
-          
-          // Background color
-          pdf.setFillColor(240, 253, 244);
-          pdf.rect(0, 0, pageWidth, pageHeight, 'F');
-          
-          // Business name at top
-          pdf.setTextColor(34, 197, 94);
-          pdf.setFontSize(24);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text(businessName.toUpperCase(), pageWidth / 2, 40, { align: 'center' });
-          
-          // Table number
-          pdf.setTextColor(107, 114, 128);
-          pdf.setFontSize(16);
-          pdf.text(`TABLE ${tableNumber}`, pageWidth / 2, 55, { align: 'center' });
-          
-          // QR code with background
-          const qrSize = 100;
-          const qrX = (pageWidth - qrSize) / 2;
-          const qrY = 80;
-          
-          // QR background
+
+          const pageIndex = i % (cols * rows);
+          const col = pageIndex % cols;
+          const row = Math.floor(pageIndex / cols);
+          const x = col * slotWidth;
+          const y = row * slotHeight;
+
+          const tableNumber = selectedTables[i];
+          const qrDataURL = qrCodes[tableNumber] || (await generateQRCode(tableNumber));
+
+          // Card background
           pdf.setFillColor(255, 255, 255);
-          pdf.setDrawColor(229, 231, 235);
-          pdf.setLineWidth(2);
-          pdf.roundedRect(qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 10, 10, 'FD');
-          
-          const qrDataURL = qrCodes[tableNumber] || await generateQRCode(tableNumber);
-          pdf.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize);
-          
-          // Welcome text
+          pdf.roundedRect(x + 5, y + 5, slotWidth - 10, slotHeight - 10, 5, 5, 'F');
+
+          // Left branding area
+          const leftWidth = (slotWidth - 20) * 0.45;
+          pdf.setFillColor(34, 197, 94); // green
+          pdf.roundedRect(x + 10, y + 15, leftWidth, slotHeight - 30, 5, 5, 'F');
+
+          // Business logo placeholder (circle)
+          pdf.setFillColor(255, 255, 255);
+          pdf.circle(x + 10 + leftWidth / 2, y + 35, 12, 'F');
+
+          // Business initial
           pdf.setTextColor(34, 197, 94);
           pdf.setFontSize(14);
           pdf.setFont('helvetica', 'bold');
-          pdf.text('Welcome!', pageWidth / 2, qrY - 20, { align: 'center' });
-          
-          // Instructions
-          pdf.setTextColor(107, 114, 128);
+          pdf.text(
+            businessName.charAt(0).toUpperCase(),
+            x + 10 + leftWidth / 2,
+            y + 40,
+            { align: 'center' }
+          );
+
+          // Business name
+          pdf.setTextColor(255, 255, 255);
+          pdf.setFontSize(10);
+          pdf.text(
+            businessName.toUpperCase(),
+            x + 10 + leftWidth / 2,
+            y + slotHeight - 20,
+            { align: 'center' }
+          );
+
+          // Table number
+          pdf.setFontSize(8);
+          pdf.text(
+            `TABLE ${tableNumber}`,
+            x + 10 + leftWidth / 2,
+            y + slotHeight - 10,
+            { align: 'center' }
+          );
+
+          // QR code on right side
+          const qrSize = 40;
+          const qrX = x + leftWidth + 25;
+          const qrY = y + (slotHeight - qrSize) / 2;
+
+          pdf.setFillColor(255, 255, 255);
+          pdf.roundedRect(qrX - 5, qrY - 5, qrSize + 10, qrSize + 10, 4, 4, 'FD');
+          pdf.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize);
+
+          // Welcome text
+          pdf.setTextColor(34, 197, 94);
           pdf.setFontSize(12);
-          pdf.setFont('helvetica', 'normal');
-          pdf.text('Scan this QR code to view our menu', pageWidth / 2, qrY + qrSize + 25, { align: 'center' });
-          pdf.text('on your smartphone', pageWidth / 2, qrY + qrSize + 35, { align: 'center' });
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('Welcome!', qrX + qrSize / 2, qrY - 10, { align: 'center' });
+
+          pdf.setTextColor(107, 114, 128);
+          pdf.setFontSize(8);
+          pdf.text(
+            'Our menu on your smartphone',
+            qrX + qrSize / 2,
+            qrY + qrSize + 15,
+            { align: 'center' }
+          );
         }
-        
+
         pdf.save(`${businessName.toLowerCase().replace(/\s+/g, '-')}-qr-codes.pdf`);
       }
     } catch (error) {
@@ -341,7 +289,10 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
           {Object.keys(qrCodes).length > 0 && (
             <div className="pt-6 border-t">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Generated QR Codes</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" ref={qrContainerRef}>
+              <div
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                ref={qrContainerRef}
+              >
                 {Object.entries(qrCodes).map(([tableNumber, qrDataURL]) => (
                   <div key={tableNumber} className="bg-gray-50 p-4 rounded-lg text-center">
                     <h4 className="font-semibold text-gray-900 mb-2">Table {tableNumber}</h4>
@@ -350,31 +301,8 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
                       alt={`QR Code for Table ${tableNumber}`}
                       className="w-32 h-32 mx-auto mb-3 border rounded"
                     />
-                    <div className="flex justify-center space-x-2">
-                      <button
-                        onClick={() => downloadSingleQR(parseInt(tableNumber), 'png')}
-                        className="text-green-600 hover:text-green-700 p-1"
-                        title="Download PNG"
-                      >
-                        <FileImage className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => downloadSingleQR(parseInt(tableNumber), 'pdf')}
-                        className="text-red-600 hover:text-red-700 p-1"
-                        title="Download PDF"
-                      >
-                        <FileText className="w-4 h-4" />
-                      </button>
-                    </div>
                     <p className="text-xs text-gray-500 mt-2 break-all">
-                      {(() => {
-                        const businessSlug = businessName.toLowerCase()
-                          .replace(/[^a-z0-9\s-]/g, '')
-                          .replace(/\s+/g, '-')
-                          .replace(/-+/g, '-')
-                          .trim();
-                        return `${window.location.origin}/${businessSlug}/table/${tableNumber}`;
-                      })()}
+                      {`${window.location.origin}/menu/${userId}/table/${tableNumber}`}
                     </p>
                   </div>
                 ))}
