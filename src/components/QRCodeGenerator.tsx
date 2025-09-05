@@ -7,7 +7,6 @@ interface QRCodeGeneratorProps {
   userId: string;
   businessName: string;
   numberOfTables: number;
-  businessLogo?: string;
   onClose: () => void;
 }
 
@@ -15,7 +14,6 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
   userId,
   businessName,
   numberOfTables,
-  businessLogo,
   onClose,
 }) => {
   const [selectedTables, setSelectedTables] = useState<number[]>([]);
@@ -89,15 +87,15 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
         await new Promise(resolve => setTimeout(resolve, 100));
       }
     } else {
-      // Portrait A4
+      // Landscape A4
       const pdf = new jsPDF({
-        orientation: 'portrait',
+        orientation: 'landscape',
         unit: 'mm',
         format: 'a4'
       });
 
-      const pageWidth = pdf.internal.pageSize.getWidth();   // 210mm
-      const pageHeight = pdf.internal.pageSize.getHeight(); // 297mm
+      const pageWidth = pdf.internal.pageSize.getWidth();   // 297mm
+      const pageHeight = pdf.internal.pageSize.getHeight(); // 210mm
 
       const cols = 3;
       const rows = 2;
@@ -126,64 +124,67 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
         const tableNumber = tablesToPrint[i];
         const qrDataURL = qrCodes[tableNumber] || await generateQRCode(tableNumber);
 
-        // Card background
+        // Outer card background
         pdf.setFillColor(255, 255, 255);
-        pdf.roundedRect(x + 5, y + 5, slotWidth - 10, slotHeight - 10, 5, 5, 'F');
+        pdf.roundedRect(x + 5, y + 5, slotWidth - 10, slotHeight - 10, 6, 6, 'F');
 
-        // Left branding area
-        const leftWidth = (slotWidth - 20) * 0.45;
-        pdf.setFillColor(34, 197, 94); // green
-        pdf.roundedRect(x + 10, y + 15, leftWidth, slotHeight - 30, 5, 5, 'F');
+        // Split card into left (logo bg) and right (QR code)
+        const halfWidth = (slotWidth - 20) / 2;
+        const leftX = x + 10;
+        const rightX = leftX + halfWidth;
+        const innerY = y + 10;
+        const innerH = slotHeight - 20;
 
-        // Business logo (replace with your actual logo)
+        // Left side with logo background
         if (businessLogo) {
           pdf.addImage(
             businessLogo,
             'PNG',
-            x + 10 + (leftWidth / 2) - 12,
-            y + 25,
-            24,
-            24
+            leftX,
+            innerY,
+            halfWidth,
+            innerH
           );
-        } else {
-          // If no logo, fallback to business initial
+          // Mask overlay
           pdf.setFillColor(255, 255, 255);
-          pdf.circle(x + 10 + leftWidth / 2, y + 37, 12, 'F');
-          pdf.setTextColor(34, 197, 94);
-          pdf.setFontSize(14);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text(businessName.charAt(0).toUpperCase(), x + 10 + leftWidth / 2, y + 42, { align: 'center' });
+          pdf.setDrawColor(255, 255, 255);
+          pdf.setGState(new pdf.GState({ opacity: 0.7 })); // semi-transparent
+          pdf.rect(leftX, innerY, halfWidth, innerH, 'F');
+          pdf.setGState(new pdf.GState({ opacity: 1 })); // reset
+        } else {
+          // Fallback solid color if no logo
+          pdf.setFillColor(34, 197, 94);
+          pdf.roundedRect(leftX, innerY, halfWidth, innerH, 0, 0, 'F');
         }
 
-        // Business name
-        pdf.setTextColor(255, 255, 255);
-        pdf.setFontSize(10);
-        pdf.text(businessName.toUpperCase(), x + 10 + leftWidth / 2, y + slotHeight - 25, { align: 'center' });
-
-        // Table number (large + bold at bottom)
-        pdf.setTextColor(255, 255, 255);
-        pdf.setFontSize(14);
+        // Text on top of logo
+        pdf.setTextColor(34, 197, 94);
         pdf.setFont('helvetica', 'bold');
-        pdf.text(`TABLE ${tableNumber}`, x + 10 + leftWidth / 2, y + slotHeight - 10, { align: 'center' });
+        pdf.setFontSize(14);
+        pdf.text('Welcome!', leftX + halfWidth / 2, innerY + 20, { align: 'center' });
 
-        // QR code on right side
-        const qrSize = 45;
-        const qrX = x + leftWidth + 25;
-        const qrY = y + (slotHeight - qrSize) / 2;
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFontSize(10);
+        pdf.text('Scan to view our menu', leftX + halfWidth / 2, innerY + 35, { align: 'center' });
+
+        // Business name
+        pdf.setFontSize(12);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(businessName.toUpperCase(), leftX + halfWidth / 2, innerY + innerH - 25, { align: 'center' });
+
+        // Table number big + bold
+        pdf.setFontSize(16);
+        pdf.setTextColor(34, 197, 94);
+        pdf.text(`TABLE ${tableNumber}`, leftX + halfWidth / 2, innerY + innerH - 10, { align: 'center' });
+
+        // Right side: QR code box
+        const qrSize = halfWidth - 30;
+        const qrX = rightX + (halfWidth - qrSize) / 2;
+        const qrY = innerY + (innerH - qrSize) / 2;
 
         pdf.setFillColor(255, 255, 255);
-        pdf.roundedRect(qrX - 5, qrY - 5, qrSize + 10, qrSize + 10, 4, 4, 'FD');
+        pdf.roundedRect(qrX - 5, qrY - 5, qrSize + 10, qrSize + 10, 5, 5, 'FD');
         pdf.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize);
-
-        // Welcome text
-        pdf.setTextColor(34, 197, 94);
-        pdf.setFontSize(12);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Welcome!', qrX + qrSize / 2, qrY - 10, { align: 'center' });
-
-        pdf.setTextColor(107, 114, 128);
-        pdf.setFontSize(8);
-        pdf.text('Scan to view our menu', qrX + qrSize / 2, qrY + qrSize + 15, { align: 'center' });
       }
 
       pdf.save(`${businessName.toLowerCase().replace(/\s+/g, '-')}-qr-codes.pdf`);
