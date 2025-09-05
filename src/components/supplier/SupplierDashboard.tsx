@@ -42,10 +42,27 @@ export const SupplierDashboard: React.FC = () => {
     
     try {
       setLoading(true);
-      const [orders, customers] = await Promise.all([
-        firebaseService.getSupplierOrders(supplierUser.supplierId),
-        firebaseService.getSupplierCustomers(supplierUser.supplierId)
-      ]);
+      
+      console.log('Loading dashboard data for supplier:', supplierUser.supplierId);
+      
+      let orders: any[] = [];
+      let customers: any[] = [];
+      
+      try {
+        orders = await firebaseService.getSupplierOrders(supplierUser.supplierId);
+        console.log('Orders loaded:', orders.length);
+      } catch (orderError) {
+        console.error('Error loading orders:', orderError);
+        orders = [];
+      }
+      
+      try {
+        customers = await firebaseService.getSupplierCustomers(supplierUser.supplierId);
+        console.log('Customers loaded:', customers.length);
+      } catch (customerError) {
+        console.error('Error loading customers:', customerError);
+        customers = [];
+      }
       
       // Calculate stats
       const now = new Date();
@@ -89,6 +106,19 @@ export const SupplierDashboard: React.FC = () => {
       setTopCustomers(customers.slice(0, 5));
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      // Set default stats to prevent crashes
+      setStats({
+        activeOrders: 0,
+        monthlyRevenue: 0,
+        restaurantCustomers: 0,
+        averageDeliveryTime: 0,
+        totalOrders: 0,
+        pendingOrders: 0,
+        completedOrders: 0,
+        cancelledOrders: 0,
+      });
+      setRecentOrders([]);
+      setTopCustomers([]);
     } finally {
       setLoading(false);
     }

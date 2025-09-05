@@ -1036,8 +1036,37 @@ class FirebaseService {
   // Supplier Products Management
   // =======================
   
+  async getAllSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
+    try {
+      console.log('Firebase: Loading all products for supplier:', supplierId);
+      const q = query(
+        collection(db, 'supplierProducts'),
+        where('supplierId', '==', supplierId)
+      );
+      const snapshot = await getDocs(q);
+      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
+      
+      console.log('Firebase: Raw products loaded:', products.length);
+      
+      // Sort by category and name
+      const sortedProducts = products.sort((a, b) => {
+        if (a.category !== b.category) {
+          return a.category.localeCompare(b.category);
+        }
+        return a.name.localeCompare(b.name);
+      });
+      
+      console.log('Firebase: Sorted products:', sortedProducts.length);
+      return sortedProducts;
+    } catch (error) {
+      console.error('Firebase: Error fetching all supplier products:', error);
+      return [];
+    }
+  }
+
   async getSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
     try {
+      console.log('Firebase: Loading available products for supplier:', supplierId);
       const q = query(
         collection(db, 'supplierProducts'),
         where('supplierId', '==', supplierId),
@@ -1046,15 +1075,20 @@ class FirebaseService {
       const snapshot = await getDocs(q);
       const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
       
+      console.log('Firebase: Available products loaded:', products.length);
+      
       // Sort by category and name
-      return products.sort((a, b) => {
+      const sortedProducts = products.sort((a, b) => {
         if (a.category !== b.category) {
           return a.category.localeCompare(b.category);
         }
         return a.name.localeCompare(b.name);
       });
+      
+      console.log('Firebase: Sorted available products:', sortedProducts.length);
+      return sortedProducts;
     } catch (error) {
-      console.error('Error fetching supplier products:', error);
+      console.error('Firebase: Error fetching supplier products:', error);
       return [];
     }
   }

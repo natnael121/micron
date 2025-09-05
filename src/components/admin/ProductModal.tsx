@@ -101,6 +101,22 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.name.trim()) {
+      alert('Please enter a product name');
+      return;
+    }
+    
+    if (!formData.category) {
+      alert('Please select a category');
+      return;
+    }
+    
+    if (formData.unitPrice <= 0) {
+      alert('Please enter a valid unit price');
+      return;
+    }
+    
     setSaving(true);
 
     try {
@@ -112,16 +128,23 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         updated_at: new Date().toISOString(),
       };
 
+      console.log('Saving product with supplierId:', supplierId);
+      console.log('Product data:', productData);
+
       if (product) {
         await supplierService.updateSupplierProduct(product.id, productData);
+        console.log('Product updated successfully');
         onSave({ ...product, ...productData });
       } else {
         const id = await supplierService.addSupplierProduct(productData);
+        console.log('Product created with ID:', id);
         onSave({ id, ...productData } as SupplierProduct);
       }
+      
+      alert('Product saved successfully!');
     } catch (error) {
       console.error('Error saving product:', error);
-      alert('Failed to save product');
+      alert(`Failed to save product: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setSaving(false);
     }

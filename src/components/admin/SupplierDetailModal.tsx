@@ -22,12 +22,58 @@ export function SupplierDetailModal({ supplier, onClose, onCreateOrder }: Suppli
         setLoading(true);
         console.log('Loading data for supplier:', supplier.id, supplier.name);
         
-        // Try to get products using the supplier ID
-        const productsData = await supplierService.getAllSupplierProducts(supplier.id);
+        // Try multiple approaches to load products
+        let productsData: SupplierProduct[] = [];
+        
+        try {
+          // First try the supplier service
+          productsData = await supplierService.getAllSupplierProducts(supplier.id);
+          console.log('Products from supplier service:', productsData.length);
+        } catch (serviceError) {
+          console.error('Supplier service failed, trying Firebase directly:', serviceError);
+          
+          try {
+            // Fallback to direct Firebase query
+            const { firebaseService } = await import('../../services/firebase');
+            productsData = await firebaseService.getAllSupplierProducts(supplier.id);
+            console.log('Products from Firebase fallback:', productsData.length);
+          } catch (firebaseError) {
+            console.error('Firebase fallback also failed:', firebaseError);
+            productsData = [];
+          }
+        }
+        
+        
+        try {
+          // First try to get all products
+          productsData = await supplierService.getAllSupplierProducts(supplier.id);
+          console.log('All products loaded:', productsData.length);
+          
+          // If no products found, try available products only
+          if (productsData.length === 0) {
+            productsData = await supplierService.getSupplierProducts(supplier.id);
+            console.log('Available products loaded:', productsData.length);
+          }
+        } catch (productError) {
+          console.error('Error loading products:', productError);
+          productsData = [];
+        }
         console.log('Products loaded:', productsData.length);
         
-        // Get orders
-        const ordersData = await supplierService.getSupplierOrders(supplier.id);
+        // Get orders with better error handling
+        let ordersData: PurchaseOrder[] = [];
+        try {
+          ordersData = await supplierService.getSupplierOrders(supplier.id);
+        } catch (orderError) {
+          console.error('Error loading orders:', orderError);
+          ordersData = [];
+        }
+        try {
+          ordersData = await supplierService.getSupplierOrders(supplier.id);
+        } catch (orderError) {
+          console.error('Error loading orders:', orderError);
+          ordersData = [];
+        }
         console.log('Orders loaded:', ordersData.length);
         
         setProducts(productsData);

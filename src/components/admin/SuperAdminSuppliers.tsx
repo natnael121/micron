@@ -463,10 +463,7 @@ export const SuperAdminSuppliers: React.FC = () => {
         <SupplierDetailModal
           supplier={viewingSupplier}
           onClose={() => setViewingSupplier(null)}
-          onCreateOrder={() => {
-            // Super admin can't create orders
-            alert('Only restaurants can create purchase orders');
-          }}
+          onCreateOrder={undefined}
         />
       )}
     </div>

@@ -35,7 +35,27 @@ export const SupplierProducts: React.FC = () => {
     try {
       setLoading(true);
       console.log('Loading products for supplier:', supplierUser.supplierId);
-      const productsData = await supplierService.getAllSupplierProducts(supplierUser.supplierId);
+      
+      // Try to load products with better error handling
+      let productsData: SupplierProduct[] = [];
+      
+      try {
+        productsData = await supplierService.getAllSupplierProducts(supplierUser.supplierId);
+        console.log('Products loaded successfully:', productsData.length);
+      } catch (productError) {
+        console.error('Error loading products from service:', productError);
+        
+        // Try direct Firestore query as fallback
+        try {
+          const { firebaseService } = await import('../../services/firebase');
+          productsData = await firebaseService.getAllSupplierProducts(supplierUser.supplierId);
+          console.log('Products loaded via fallback:', productsData.length);
+        } catch (fallbackError) {
+          console.error('Fallback also failed:', fallbackError);
+          productsData = [];
+        }
+      }
+      
       console.log('Products loaded:', productsData.length);
       setProducts(productsData);
     } catch (error) {
@@ -292,6 +312,8 @@ export const SupplierProducts: React.FC = () => {
             }
             setShowAddProduct(false);
             setEditingProduct(null);
+            // Reload products to ensure consistency
+            loadProducts();
           }}
         />
       )}

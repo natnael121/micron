@@ -44,7 +44,14 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
     try {
       setLoading(true);
       console.log('Loading products for supplier:', supplier.id, supplier.name);
-      const productsData = await supplierService.getAllSupplierProducts(supplier.id);
+      // Try both available and all products
+      const [availableProducts, allProducts] = await Promise.all([
+        supplierService.getSupplierProducts(supplier.id),
+        supplierService.getAllSupplierProducts(supplier.id)
+      ]);
+      
+      // Use available products if any, otherwise use all products
+      const productsData = availableProducts.length > 0 ? availableProducts : allProducts;
       console.log('Products loaded:', productsData.length);
       setProducts(productsData);
     } catch (error) {

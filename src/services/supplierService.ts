@@ -221,6 +221,7 @@ class SupplierService {
   
   async getAllSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
     try {
+      console.log('Loading all products for supplier:', supplierId);
       const q = query(
         collection(db, 'supplierProducts'),
         where('supplierId', '==', supplierId)
@@ -228,13 +229,18 @@ class SupplierService {
       const snapshot = await getDocs(q);
       const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
       
+      console.log('Raw products from Firestore:', products.length);
+      
       // Sort in memory to avoid composite index requirement
-      return products.sort((a, b) => {
+      const sortedProducts = products.sort((a, b) => {
         if (a.category !== b.category) {
           return a.category.localeCompare(b.category);
         }
         return a.name.localeCompare(b.name);
       });
+      
+      console.log('Sorted products:', sortedProducts.length);
+      return sortedProducts;
     } catch (error) {
       console.error('Error fetching all supplier products:', error);
       return []; // Return empty array instead of throwing to prevent UI crashes
@@ -243,6 +249,7 @@ class SupplierService {
 
   async getSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
     try {
+      console.log('Loading available products for supplier:', supplierId);
       const q = query(
         collection(db, 'supplierProducts'),
         where('supplierId', '==', supplierId),
@@ -251,13 +258,18 @@ class SupplierService {
       const snapshot = await getDocs(q);
       const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
       
+      console.log('Available products from Firestore:', products.length);
+      
       // Sort in memory to avoid composite index requirement
-      return products.sort((a, b) => {
+      const sortedProducts = products.sort((a, b) => {
         if (a.category !== b.category) {
           return a.category.localeCompare(b.category);
         }
         return a.name.localeCompare(b.name);
       });
+      
+      console.log('Sorted available products:', sortedProducts.length);
+      return sortedProducts;
     } catch (error) {
       console.error('Error fetching supplier products:', error);
       return []; // Return empty array instead of throwing to prevent UI crashes
@@ -266,11 +278,13 @@ class SupplierService {
 
   async addSupplierProduct(product: Omit<SupplierProduct, 'id'>): Promise<string> {
     try {
+      console.log('Adding supplier product:', product.name, 'for supplier:', product.supplierId);
       const docRef = await addDoc(collection(db, 'supplierProducts'), {
         ...product,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
+      console.log('Product added with ID:', docRef.id);
       return docRef.id;
     } catch (error) {
       console.error('Error adding supplier product:', error);
@@ -280,11 +294,13 @@ class SupplierService {
 
   async updateSupplierProduct(id: string, updates: Partial<SupplierProduct>): Promise<void> {
     try {
+      console.log('Updating supplier product:', id, updates);
       const docRef = doc(db, 'supplierProducts', id);
       await updateDoc(docRef, {
         ...updates,
         updated_at: new Date().toISOString(),
       });
+      console.log('Product updated successfully');
     } catch (error) {
       console.error('Error updating supplier product:', error);
       throw error;
