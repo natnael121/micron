@@ -1100,6 +1100,8 @@ class FirebaseService {
     try {
       const q = query(
         collection(db, 'supplierProducts'),
+      )
+    }
     try {
       console.log('Firebase: Adding supplier product:', product.name, 'for supplier:', product.supplierId);
       const docRef = await addDoc(collection(db, 'supplierProducts'), {
