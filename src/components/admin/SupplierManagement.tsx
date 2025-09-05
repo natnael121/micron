@@ -39,6 +39,8 @@ export const SupplierManagement: React.FC = () => {
   const [viewingSupplier, setViewingSupplier] = useState<Supplier | null>(null);
   const [showCreateOrder, setShowCreateOrder] = useState<Supplier | null>(null);
   const [viewingOrder, setViewingOrder] = useState<PurchaseOrder | null>(null);
+  const [supplierProducts, setSupplierProducts] = useState<Record<string, SupplierProduct[]>>({});
+  const [loadingProducts, setLoadingProducts] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (user) {
@@ -76,6 +78,9 @@ export const SupplierManagement: React.FC = () => {
       
       setSuppliers(suppliersData);
       setPurchaseOrders(ordersData);
+      
+      // Load products for each supplier
+      await loadProductsForSuppliers(suppliersData);
     } catch (error) {
       console.error('Error loading supplier data:', error);
       // Set empty arrays to prevent crashes
@@ -84,6 +89,34 @@ export const SupplierManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadProductsForSuppliers = async (suppliers: Supplier[]) => {
+    const productPromises = suppliers.map(async (supplier) => {
+      try {
+        setLoadingProducts(prev => ({ ...prev, [supplier.id]: true }));
+        console.log('Loading products for supplier:', supplier.id, supplier.name);
+        
+        // Use Firebase service directly to get all products for this supplier
+        const productsData = await firebaseService.getAllSupplierProducts(supplier.id);
+        console.log(`Products loaded for ${supplier.name}:`, productsData.length);
+        
+        setSupplierProducts(prev => ({
+          ...prev,
+          [supplier.id]: productsData
+        }));
+      } catch (error) {
+        console.error(`Error loading products for supplier ${supplier.name}:`, error);
+        setSupplierProducts(prev => ({
+          ...prev,
+          [supplier.id]: []
+        }));
+      } finally {
+        setLoadingProducts(prev => ({ ...prev, [supplier.id]: false }));
+      }
+    });
+    
+    await Promise.all(productPromises);
   };
 
   const handleDeleteSupplier = async (id: string) => {
@@ -310,6 +343,23 @@ export const SupplierManagement: React.FC = () => {
                   </div>
                   
                   <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Products:</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {loadingProducts[supplier.id] ? (
+                        <span className="text-gray-500">Loading...</span>
+                      ) : (
+                        <>
+                          {supplierProducts[supplier.id]?.filter(p => p.isAvailable).length || 0} available
+                          {supplierProducts[supplier.id]?.length ? 
+                            ` of ${supplierProducts[supplier.id].length} total` : 
+                            ''
+                          }
+                        </>
+                      )}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Orders:</span>
                     <span className="text-sm font-medium text-gray-900">{supplier.totalOrders || 0}</span>
                   </div>
@@ -317,11 +367,51 @@ export const SupplierManagement: React.FC = () => {
                   <div className="pt-3 border-t">
                     <button
                       onClick={() => setShowCreateOrder(supplier)}
-                      className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
+                      disabled={!supplierProducts[supplier.id]?.some(p => p.isAvailable)}
+                      className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
                       <ShoppingCart className="w-4 h-4" />
-                      <span>Create Order</span>
+                      <span>
+                        {loadingProducts[supplier.id] ? 'Loading...' : 
+                         !supplierProducts[supplier.id]?.some(p => p.isAvailable) ? 'No Products Available' : 
+                         'Create Order'}
+                      </span>
                     </button>
+                    
+                    {/* Product Summary */}
+                    {supplierProducts[supplier.id] && supplierProducts[supplier.id].length > 0 && (
+                      <div className="mt-2 text-xs text-gray-500">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <span className="text-green-600 font-medium">
+                              {supplierProducts[supplier.id].filter(p => p.isAvailable).length}
+                            </span> available
+                          </div>
+                          <div>
+                            <span className="text-gray-600 font-medium">
+                              {supplierProducts[supplier.id].filter(p => !p.isAvailable).length}
+                            </span> unavailable
+                          </div>
+                        </div>
+                        
+                        {/* Show categories */}
+                        {(() => {
+                          const categories = [...new Set(supplierProducts[supplier.id].map(p => p.category))];
+                          if (categories.length > 0) {
+                            return (
+                              <div className="mt-1">
+                                <span className="text-gray-500">Categories: </span>
+                                <span className="text-gray-700">
+                                  {categories.slice(0, 2).join(', ')}
+                                  {categories.length > 2 && ` +${categories.length - 2} more`}
+                                </span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -345,6 +435,31 @@ export const SupplierManagement: React.FC = () => {
               </div>
             )}
           </div>
+          
+          {/* Debug Info */}
+          {!loading && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="font-medium text-blue-900 mb-2">Debug Information</h3>
+              <div className="text-sm text-blue-800 space-y-1">
+                <p><strong>Total Suppliers:</strong> {suppliers.length}</p>
+                <p><strong>Filtered Suppliers:</strong> {filteredSuppliers.length}</p>
+                <p><strong>Products Loaded:</strong> {Object.keys(supplierProducts).length} suppliers</p>
+                <div className="mt-2">
+                  <strong>Product Summary:</strong>
+                  <ul className="list-disc list-inside ml-4 mt-1">
+                    {Object.entries(supplierProducts).map(([supplierId, products]) => {
+                      const supplier = suppliers.find(s => s.id === supplierId);
+                      return (
+                        <li key={supplierId}>
+                          {supplier?.name}: {products.filter(p => p.isAvailable).length} available, {products.filter(p => !p.isAvailable).length} unavailable
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
