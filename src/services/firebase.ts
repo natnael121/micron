@@ -1100,29 +1100,6 @@ class FirebaseService {
     try {
       const q = query(
         collection(db, 'supplierProducts'),
-        where('supplierId', '==', supplierId),
-      )
-      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
-      
-      console.log('Firebase: Raw products loaded:', products.length);
-      
-      // Sort by category and name
-      const sortedProducts = products.sort((a, b) => {
-        if (a.category !== b.category) {
-          return a.category.localeCompare(b.category);
-        }
-        return a.name.localeCompare(b.name);
-      });
-      
-      console.log('Firebase: Sorted products:', sortedProducts.length);
-      return sortedProducts;
-    } catch (error) {
-      console.error('Error fetching all supplier products:', error);
-      throw error; // Let the caller handle the error
-    }
-  }
-
-  async addSupplierProduct(product: Omit<SupplierProduct, 'id'>): Promise<string> {
     try {
       console.log('Firebase: Adding supplier product:', product.name, 'for supplier:', product.supplierId);
       const docRef = await addDoc(collection(db, 'supplierProducts'), {
