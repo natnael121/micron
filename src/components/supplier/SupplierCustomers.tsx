@@ -33,10 +33,13 @@ export const SupplierCustomers: React.FC = () => {
     
     try {
       setLoading(true);
+      console.log('Loading customers for supplier:', supplierUser.supplierId);
       const customersData = await firebaseService.getSupplierCustomers(supplierUser.supplierId);
+      console.log('Customers loaded:', customersData.length);
       setCustomers(customersData);
     } catch (error) {
       console.error('Error loading customers:', error);
+      setCustomers([]); // Set empty array to prevent crashes
     } finally {
       setLoading(false);
     }

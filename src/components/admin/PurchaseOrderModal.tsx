@@ -44,14 +44,26 @@ export const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
     try {
       setLoading(true);
       console.log('Loading products for supplier:', supplier.id, supplier.name);
-      // Try both available and all products
-      const [availableProducts, allProducts] = await Promise.all([
-        supplierService.getSupplierProducts(supplier.id),
-        supplierService.getAllSupplierProducts(supplier.id)
-      ]);
       
-      // Use available products if any, otherwise use all products
-      const productsData = availableProducts.length > 0 ? availableProducts : allProducts;
+      // First try to get all products
+      let productsData: SupplierProduct[] = [];
+      
+      try {
+        productsData = await supplierService.getAllSupplierProducts(supplier.id);
+        console.log('All products loaded:', productsData.length);
+      } catch (error) {
+        console.error('Error loading all products:', error);
+        
+        // Fallback to available products only
+        try {
+          productsData = await supplierService.getSupplierProducts(supplier.id);
+          console.log('Available products loaded as fallback:', productsData.length);
+        } catch (fallbackError) {
+          console.error('Fallback also failed:', fallbackError);
+          productsData = [];
+        }
+      }
+      
       console.log('Products loaded:', productsData.length);
       setProducts(productsData);
     } catch (error) {

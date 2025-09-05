@@ -117,6 +117,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       return;
     }
     
+    if (!supplierId) {
+      alert('Supplier ID is missing');
+      return;
+    }
+    
     setSaving(true);
 
     try {
@@ -141,7 +146,6 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         onSave({ id, ...productData } as SupplierProduct);
       }
       
-      alert('Product saved successfully!');
     } catch (error) {
       console.error('Error saving product:', error);
       alert(`Failed to save product: ${error instanceof Error ? error.message : 'Unknown error'}`);

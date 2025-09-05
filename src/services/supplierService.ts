@@ -250,13 +250,16 @@ class SupplierService {
   async getSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
     try {
       console.log('Loading available products for supplier:', supplierId);
+      // First get all products, then filter available ones to avoid composite index issues
       const q = query(
         collection(db, 'supplierProducts'),
-        where('supplierId', '==', supplierId),
-        where('isAvailable', '==', true)
+        where('supplierId', '==', supplierId)
       );
       const snapshot = await getDocs(q);
-      const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
+      const allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SupplierProduct));
+      
+      // Filter available products in memory
+      const products = allProducts.filter(product => product.isAvailable);
       
       console.log('Available products from Firestore:', products.length);
       

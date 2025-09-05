@@ -40,15 +40,33 @@ export const SuperAdminSuppliers: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [suppliersData, analyticsData] = await Promise.all([
-        supplierService.getAllSuppliers(),
-        supplierService.getSupplierAnalytics()
-      ]);
+      console.log('Loading all suppliers for super admin');
+      
+      let suppliersData: Supplier[] = [];
+      let analyticsData: SupplierAnalytics | null = null;
+      
+      try {
+        suppliersData = await supplierService.getAllSuppliers();
+        console.log('All suppliers loaded:', suppliersData.length);
+      } catch (error) {
+        console.error('Error loading suppliers:', error);
+        suppliersData = [];
+      }
+      
+      try {
+        analyticsData = await supplierService.getSupplierAnalytics();
+        console.log('Analytics loaded');
+      } catch (error) {
+        console.error('Error loading analytics:', error);
+        analyticsData = null;
+      }
       
       setSuppliers(suppliersData);
       setAnalytics(analyticsData);
     } catch (error) {
       console.error('Error loading supplier data:', error);
+      setSuppliers([]);
+      setAnalytics(null);
     } finally {
       setLoading(false);
     }

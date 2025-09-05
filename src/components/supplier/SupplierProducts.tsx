@@ -36,31 +36,23 @@ export const SupplierProducts: React.FC = () => {
       setLoading(true);
       console.log('Loading products for supplier:', supplierUser.supplierId);
       
-      // Try to load products with better error handling
-      let productsData: SupplierProduct[] = [];
-      
-      try {
-        productsData = await supplierService.getAllSupplierProducts(supplierUser.supplierId);
-        console.log('Products loaded successfully:', productsData.length);
-      } catch (productError) {
-        console.error('Error loading products from service:', productError);
-        
-        // Try direct Firestore query as fallback
-        try {
-          const { firebaseService } = await import('../../services/firebase');
-          productsData = await firebaseService.getAllSupplierProducts(supplierUser.supplierId);
-          console.log('Products loaded via fallback:', productsData.length);
-        } catch (fallbackError) {
-          console.error('Fallback also failed:', fallbackError);
-          productsData = [];
-        }
-      }
+      // Load all products for this supplier
+      const productsData = await supplierService.getAllSupplierProducts(supplierUser.supplierId);
       
       console.log('Products loaded:', productsData.length);
       setProducts(productsData);
     } catch (error) {
       console.error('Error loading products:', error);
-      setProducts([]); // Set empty array to prevent crashes
+      // Try direct Firebase query as fallback
+      try {
+        const { firebaseService } = await import('../../services/firebase');
+        const fallbackProducts = await firebaseService.getAllSupplierProducts(supplierUser.supplierId);
+        console.log('Fallback products loaded:', fallbackProducts.length);
+        setProducts(fallbackProducts);
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+        setProducts([]);
+      }
     } finally {
       setLoading(false);
     }

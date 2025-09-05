@@ -50,15 +50,34 @@ export const SupplierManagement: React.FC = () => {
     
     try {
       setLoading(true);
-      const [suppliersData, ordersData] = await Promise.all([
-        supplierService.getSuppliers(user.id),
-        supplierService.getPurchaseOrders(user.id)
-      ]);
+      console.log('Loading supplier data for restaurant:', user.id);
+      
+      let suppliersData: Supplier[] = [];
+      let ordersData: PurchaseOrder[] = [];
+      
+      try {
+        suppliersData = await supplierService.getSuppliers(user.id);
+        console.log('Suppliers loaded:', suppliersData.length);
+      } catch (error) {
+        console.error('Error loading suppliers:', error);
+        suppliersData = [];
+      }
+      
+      try {
+        ordersData = await supplierService.getPurchaseOrders(user.id);
+        console.log('Purchase orders loaded:', ordersData.length);
+      } catch (error) {
+        console.error('Error loading purchase orders:', error);
+        ordersData = [];
+      }
       
       setSuppliers(suppliersData);
       setPurchaseOrders(ordersData);
     } catch (error) {
       console.error('Error loading supplier data:', error);
+      // Set empty arrays to prevent crashes
+      setSuppliers([]);
+      setPurchaseOrders([]);
     } finally {
       setLoading(false);
     }

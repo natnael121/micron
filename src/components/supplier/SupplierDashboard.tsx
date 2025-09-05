@@ -37,6 +37,7 @@ export const SupplierDashboard: React.FC = () => {
   const loadDashboardData = async () => {
     if (!supplierUser.supplierId) {
       console.warn('No supplier ID found in session');
+      setLoading(false);
       return;
     }
     

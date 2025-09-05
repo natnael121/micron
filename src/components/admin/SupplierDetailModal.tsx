@@ -18,43 +18,37 @@ export function SupplierDetailModal({ supplier, onClose, onCreateOrder }: Suppli
   const [activeTab, setActiveTab] = useState<'info' | 'products' | 'orders'>('info');
 
   useEffect(() => {
-    // Load products
     const loadProducts = async () => {
       setLoadingProducts(true);
       try {
-        let productsData: SupplierProduct[] = [];
-        try {
-          productsData = await supplierService.getAllSupplierProducts(supplier.id);
-          if (!productsData.length) {
-            productsData = await supplierService.getSupplierProducts(supplier.id);
-          }
-        } catch (serviceErr) {
-          console.error('Supplier service failed, trying Firebase fallback:', serviceErr);
-          try {
-            const { firebaseService } = await import('../../services/firebase');
-            productsData = await firebaseService.getAllSupplierProducts(supplier.id);
-          } catch (firebaseErr) {
-            console.error('Firebase fallback failed:', firebaseErr);
-            productsData = [];
-          }
-        }
+        console.log('Loading products for supplier:', supplier.id);
+        const productsData = await supplierService.getAllSupplierProducts(supplier.id);
+        console.log('Products loaded for supplier detail:', productsData.length);
         setProducts(productsData);
-      } catch (err) {
-        console.error('Unexpected error loading products:', err);
-        setProducts([]);
+      } catch (error) {
+        console.error('Error loading products:', error);
+        // Try direct Firebase query as fallback
+        try {
+          const { firebaseService } = await import('../../services/firebase');
+          const fallbackProducts = await firebaseService.getAllSupplierProducts(supplier.id);
+          console.log('Fallback products loaded:', fallbackProducts.length);
+          setProducts(fallbackProducts);
+        } catch (fallbackError) {
+          console.error('Fallback failed:', fallbackError);
+          setProducts([]);
+        }
       } finally {
         setLoadingProducts(false);
       }
     };
 
-    // Load recent orders
     const loadOrders = async () => {
       setLoadingOrders(true);
       try {
         const ordersData = await supplierService.getSupplierOrders(supplier.id);
-        setRecentOrders(ordersData.slice(0, 5)); // show last 5
-      } catch (err) {
-        console.error('Error loading orders:', err);
+        setRecentOrders(ordersData.slice(0, 5));
+      } catch (error) {
+        console.error('Error loading orders:', error);
         setRecentOrders([]);
       } finally {
         setLoadingOrders(false);
