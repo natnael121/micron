@@ -99,7 +99,14 @@ const downloadAllQRCodes = async (format: 'png' | 'pdf') => {
       const slotWidth = pageWidth / cols;
       const slotHeight = pageHeight / rows;
 
-      for (let i = 0; i < selectedTables.length; i++) {
+      // Repeat tables if less than 6
+      let tablesToPrint = [...selectedTables];
+      while (tablesToPrint.length < 6) {
+        tablesToPrint = tablesToPrint.concat(selectedTables);
+      }
+      tablesToPrint = tablesToPrint.slice(0, Math.ceil(selectedTables.length / 6) * 6);
+
+      for (let i = 0; i < tablesToPrint.length; i++) {
         if (i > 0 && i % (cols * rows) === 0) {
           pdf.addPage();
         }
@@ -111,7 +118,7 @@ const downloadAllQRCodes = async (format: 'png' | 'pdf') => {
         const x = col * slotWidth;
         const y = row * slotHeight;
 
-        const tableNumber = selectedTables[i];
+        const tableNumber = tablesToPrint[i];
         const qrDataURL = qrCodes[tableNumber] || await generateQRCode(tableNumber);
 
         // Card background
@@ -123,7 +130,7 @@ const downloadAllQRCodes = async (format: 'png' | 'pdf') => {
         pdf.setFillColor(34, 197, 94); // green
         pdf.roundedRect(x + 10, y + 15, leftWidth, slotHeight - 30, 5, 5, 'F');
 
-         // Business logo (replace with your actual logo)
+        // Business logo
         if (businessLogo) {
           pdf.addImage(
             businessLogo,
@@ -143,22 +150,15 @@ const downloadAllQRCodes = async (format: 'png' | 'pdf') => {
           pdf.text(businessName.charAt(0).toUpperCase(), x + 10 + leftWidth / 2, y + 42, { align: 'center' });
         }
 
-        
-        // Business initial
-        pdf.setTextColor(34, 197, 94);
-        pdf.setFontSize(14);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(businessName.charAt(0).toUpperCase(), x + 10 + leftWidth / 2, y + 40, { align: 'center' });
-
         // Business name
         pdf.setTextColor(255, 255, 255);
         pdf.setFontSize(10);
         pdf.text(businessName.toUpperCase(), x + 10 + leftWidth / 2, y + slotHeight - 20, { align: 'center' });
 
+        // Table number text - FIXED: Using correct coordinates
         pdf.setFontSize(16);
-        pdf.setTextColor(34, 197, 94);
-        pdf.text(`TABLE ${tableNumber}`, leftX + halfWidth / 2, innerY + innerH - 10, { align: 'center' });
-
+        pdf.setTextColor(255, 255, 255);
+        pdf.text(`TABLE ${tableNumber}`, x + 10 + leftWidth / 2, y + slotHeight - 40, { align: 'center' });
 
         // QR code on right side
         const qrSize = 40;
@@ -189,7 +189,6 @@ const downloadAllQRCodes = async (format: 'png' | 'pdf') => {
     setGenerating(false);
   }
 };
-
   
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
