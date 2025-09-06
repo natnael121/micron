@@ -12,8 +12,6 @@ import {
   Building2,
   X,
   Bell,
-  Truck,
-  Package
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
@@ -37,8 +35,6 @@ export const AdminLayout: React.FC = () => {
     { path: '/admin/waiters', icon: User, label: 'Waiters' },
     { path: '/admin/orders', icon: ShoppingBag, label: 'Orders' },
     { path: '/admin/bills', icon: Receipt, label: 'Bills' },
-    { path: '/admin/delivery', icon: Truck, label: 'Delivery Integration' },
-    { path: '/admin/suppliers', icon: Package, label: 'Suppliers' },
     { path: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
     { path: '/admin/settings', icon: Settings, label: 'Settings' },
   ];
