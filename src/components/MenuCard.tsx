@@ -2,6 +2,23 @@ import React from 'react';
 import { Plus, Clock, Star } from 'lucide-react';
 import { ScheduledMenuItem } from '../types';
 
+// Allergen options with icons
+const ALLERGEN_OPTIONS = [
+  { id: 'gluten', name: 'Gluten', icon: '🌾' },
+  { id: 'dairy', name: 'Dairy', icon: '🥛' },
+  { id: 'nuts', name: 'Nuts', icon: '🥜' },
+  { id: 'eggs', name: 'Eggs', icon: '🥚' },
+  { id: 'soy', name: 'Soy', icon: '🫘' },
+  { id: 'fish', name: 'Fish', icon: '🐟' },
+  { id: 'shellfish', name: 'Shellfish', icon: '🦐' },
+  { id: 'sesame', name: 'Sesame', icon: '🌰' },
+  { id: 'vegan', name: 'Vegan', icon: '🌱' },
+  { id: 'vegetarian', name: 'Vegetarian', icon: '🥬' },
+  { id: 'spicy', name: 'Spicy', icon: '🌶️' },
+  { id: 'halal', name: 'Halal', icon: '☪️' },
+  { id: 'kosher', name: 'Kosher', icon: '✡️' },
+];
+
 interface MenuCardProps {
   item: ScheduledMenuItem;
   onClick: () => void;
@@ -61,6 +78,31 @@ export const MenuCard: React.FC<MenuCardProps> = ({ item, onClick, onAddToCart, 
               <span className="text-gray-900 text-xs font-medium">
                 {item.preparation_time} MIN
               </span>
+            </div>
+          )}
+
+          {/* Allergen icons */}
+          {item.allergens && (
+            <div className="absolute top-3 left-3 flex space-x-1">
+              {item.allergens.split(',').slice(0, 3).map((allergen, index) => {
+                const allergenData = ALLERGEN_OPTIONS.find(a => 
+                  a.name.toLowerCase() === allergen.trim().toLowerCase()
+                );
+                return allergenData ? (
+                  <div
+                    key={index}
+                    className="bg-white/90 backdrop-blur-sm rounded-full w-6 h-6 flex items-center justify-center"
+                    title={allergenData.name}
+                  >
+                    <span className="text-sm">{allergenData.icon}</span>
+                  </div>
+                ) : null;
+              })}
+              {item.allergens.split(',').length > 3 && (
+                <div className="bg-white/90 backdrop-blur-sm rounded-full w-6 h-6 flex items-center justify-center">
+                  <span className="text-xs text-gray-700 font-medium">+{item.allergens.split(',').length - 3}</span>
+                </div>
+              )}
             </div>
           )}
 

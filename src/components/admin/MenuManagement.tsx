@@ -5,6 +5,23 @@ import { firebaseService } from '../../services/firebase';
 import { imgbbService } from '../../services/imgbb';
 import { MenuItem, Category, Department, MenuSchedule } from '../../types';
 
+// Allergen options with icons
+const ALLERGEN_OPTIONS = [
+  { id: 'gluten', name: 'Gluten', icon: '🌾' },
+  { id: 'dairy', name: 'Dairy', icon: '🥛' },
+  { id: 'nuts', name: 'Nuts', icon: '🥜' },
+  { id: 'eggs', name: 'Eggs', icon: '🥚' },
+  { id: 'soy', name: 'Soy', icon: '🫘' },
+  { id: 'fish', name: 'Fish', icon: '🐟' },
+  { id: 'shellfish', name: 'Shellfish', icon: '🦐' },
+  { id: 'sesame', name: 'Sesame', icon: '🌰' },
+  { id: 'vegan', name: 'Vegan', icon: '🌱' },
+  { id: 'vegetarian', name: 'Vegetarian', icon: '🥬' },
+  { id: 'spicy', name: 'Spicy', icon: '🌶️' },
+  { id: 'halal', name: 'Halal', icon: '☪️' },
+  { id: 'kosher', name: 'Kosher', icon: '✡️' },
+];
+
   const MenuManagement: React.FC = () => {
   const { user } = useAuth();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -270,6 +287,23 @@ import { MenuItem, Category, Department, MenuSchedule } from '../../types';
                         {schedules.find(s => item.scheduleIds?.includes(s.id))?.name || 'Scheduled'}
                       </span>
                     )}
+                    {item.allergens && (
+                      <div className="flex space-x-1">
+                        {item.allergens.split(',').slice(0, 3).map((allergen, index) => {
+                          const allergenData = ALLERGEN_OPTIONS.find(a => 
+                            a.name.toLowerCase() === allergen.trim().toLowerCase()
+                          );
+                          return allergenData ? (
+                            <span key={index} className="text-sm" title={allergenData.name}>
+                              {allergenData.icon}
+                            </span>
+                          ) : null;
+                        })}
+                        {item.allergens.split(',').length > 3 && (
+                          <span className="text-xs text-gray-500">+{item.allergens.split(',').length - 3}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="flex space-x-2">
                     <button
@@ -442,10 +476,29 @@ const ItemModal: React.FC<ItemModalProps> = ({ item, categories, departments, sc
     department: item?.department || '',
     scheduleIds: item?.scheduleIds || [],
   });
+  const [selectedAllergens, setSelectedAllergens] = useState<string[]>(
+    item?.allergens ? item.allergens.split(',').map(a => a.trim()) : []
+  );
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoUrl, setPhotoUrl] = useState(item?.photo || '');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const handleAllergenToggle = (allergenId: string) => {
+    setSelectedAllergens(prev => {
+      const newAllergens = prev.includes(allergenId)
+        ? prev.filter(id => id !== allergenId)
+        : [...prev, allergenId];
+      
+      // Update form data
+      setFormData(prevForm => ({
+        ...prevForm,
+        allergens: newAllergens.join(', ')
+      }));
+      
+      return newAllergens;
+    });
+  };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -700,15 +753,47 @@ const ItemModal: React.FC<ItemModalProps> = ({ item, categories, departments, sc
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Allergens
+              Allergens & Dietary Information
             </label>
-            <input
-              type="text"
-              value={formData.allergens}
-              onChange={(e) => setFormData(prev => ({ ...prev, allergens: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="e.g., Gluten, Dairy, Nuts"
-            />
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+                {ALLERGEN_OPTIONS.map((allergen) => (
+                  <button
+                    key={allergen.id}
+                    type="button"
+                    onClick={() => handleAllergenToggle(allergen.id)}
+                    className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all ${
+                      selectedAllergens.includes(allergen.id)
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                    }`}
+                  >
+                    <span className="text-2xl mb-1">{allergen.icon}</span>
+                    <span className="text-xs font-medium text-center">{allergen.name}</span>
+                  </button>
+                ))}
+              </div>
+              
+              {selectedAllergens.length > 0 && (
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-2">Selected allergens & dietary info:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedAllergens.map(allergenId => {
+                      const allergen = ALLERGEN_OPTIONS.find(a => a.id === allergenId);
+                      return allergen ? (
+                        <span
+                          key={allergenId}
+                          className="inline-flex items-center space-x-1 bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs"
+                        >
+                          <span>{allergen.icon}</span>
+                          <span>{allergen.name}</span>
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex justify-end space-x-4 pt-6 border-t">

@@ -2,6 +2,23 @@ import React, { useState } from 'react';
 import { X, Plus, Minus, Clock, AlertTriangle, Star, ChefHat } from 'lucide-react';
 import { ScheduledMenuItem } from '../types';
 
+// Allergen options with icons
+const ALLERGEN_OPTIONS = [
+  { id: 'gluten', name: 'Gluten', icon: '🌾' },
+  { id: 'dairy', name: 'Dairy', icon: '🥛' },
+  { id: 'nuts', name: 'Nuts', icon: '🥜' },
+  { id: 'eggs', name: 'Eggs', icon: '🥚' },
+  { id: 'soy', name: 'Soy', icon: '🫘' },
+  { id: 'fish', name: 'Fish', icon: '🐟' },
+  { id: 'shellfish', name: 'Shellfish', icon: '🦐' },
+  { id: 'sesame', name: 'Sesame', icon: '🌰' },
+  { id: 'vegan', name: 'Vegan', icon: '🌱' },
+  { id: 'vegetarian', name: 'Vegetarian', icon: '🥬' },
+  { id: 'spicy', name: 'Spicy', icon: '🌶️' },
+  { id: 'halal', name: 'Halal', icon: '☪️' },
+  { id: 'kosher', name: 'Kosher', icon: '✡️' },
+];
+
 interface MenuDetailProps {
   item: ScheduledMenuItem;
   onClose: () => void;
@@ -157,6 +174,52 @@ export const MenuDetail: React.FC<MenuDetailProps> = ({ item, onClose, onAddToCa
 
           {/* Allergens */}
           {item.allergens && (
+            <div>
+              <h3 className="text-white font-semibold mb-3 flex items-center space-x-2">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+                <span>Allergens & Dietary Information</span>
+              </h3>
+              <div className="grid grid-cols-4 gap-3">
+                {item.allergens.split(',').map((allergen, index) => {
+                  const allergenData = ALLERGEN_OPTIONS.find(a => 
+                    a.name.toLowerCase() === allergen.trim().toLowerCase()
+                  );
+                  return allergenData ? (
+                    <div key={index} className="text-center">
+                      <div className="w-12 h-12 bg-gray-800 rounded-xl flex items-center justify-center mb-2">
+                        <span className="text-2xl">{allergenData.icon}</span>
+                      </div>
+                      <span className="text-gray-300 text-xs">
+                        {allergenData.name}
+                      </span>
+                    </div>
+                  ) : (
+                    <div key={index} className="text-center">
+                      <div className="w-12 h-12 bg-red-900/20 rounded-xl flex items-center justify-center mb-2">
+                        <AlertTriangle className="w-6 h-6 text-red-400" />
+                      </div>
+                      <span className="text-red-300 text-xs">
+                        {allergen.trim()}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {item.allergens.split(',').length > 4 && (
+                <button className="text-yellow-400 text-sm mt-3 flex items-center space-x-1">
+                  <span>Show more</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Legacy allergens display for items without proper allergen data */}
+          {item.allergens && !item.allergens.split(',').some(allergen => 
+            ALLERGEN_OPTIONS.some(a => a.name.toLowerCase() === allergen.trim().toLowerCase())
+          ) && (
             <div className="flex items-start text-red-400 bg-red-900/20 px-4 py-3 rounded-xl">
               <AlertTriangle className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
               <div>

@@ -117,6 +117,7 @@ export interface MenuItem {
   userId?: string;
   department?: 'kitchen';
   scheduleIds?: string[]; // Array of schedule IDs this item belongs to
+  allergenIds?: string[]; // Array of allergen IDs for structured data
 }
 
 export interface Category {
