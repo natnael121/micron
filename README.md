@@ -14,7 +14,6 @@ A comprehensive, production-ready platform where restaurant owners can create an
 - **Telegram Integration**: Real-time notifications with interactive approve/reject buttons
 - **Multi-table Support**: Handle unlimited tables with unique QR codes and URLs
 - **Waiter Management**: Assign waiters to specific tables with notification routing
-- **POS Integration**: Connect with major POS systems for seamless operations
 - **Delivery Platform Integration**: Connect with Uber Eats, DoorDash, Grubhub, and more
 - **Professional Print Menus**: Generate high-quality PDF menus for physical display
 - **QR Code Generation**: Bulk generate and download QR codes for all tables
@@ -101,9 +100,8 @@ FIREBASE_CLIENT_EMAIL=your_service_account_email
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nyour_private_key\n-----END PRIVATE KEY-----\n"
 
 # Optional: POS Integration
-VITE_POS_API_KEY=your_pos_api_key
 
-# Optional: Delivery Integration
+# Delivery Integration
 UBER_EATS_CLIENT_ID=your_uber_eats_client_id
 UBER_EATS_CLIENT_SECRET=your_uber_eats_client_secret
 DOORDASH_API_KEY=your_doordash_api_key
@@ -131,26 +129,7 @@ npm run dev
 
 ### POS System Integration
 
-The platform supports integration with major POS systems. To integrate with your specific POS:
-
-#### Supported POS Systems
-- **Square POS**: Full integration with order sync and payment processing
-- **Toast POS**: Menu sync and order management
-- **Clover**: Real-time inventory and sales data
-- **Custom POS**: Generic API integration for any REST-based POS
-
-#### Integration Steps
-1. **Configure API Credentials**: Add your POS API keys to environment variables
-2. **Customize API Endpoints**: Modify `api/pos-integration.js` to match your POS API
-3. **Map Data Structures**: Ensure order and menu data formats match your POS requirements
-4. **Test Integration**: Use the POS Integration panel in admin to test connections
-
-#### Key Integration Points
-- **Order Synchronization**: New orders automatically sync to POS
-- **Payment Processing**: Payments from POS update order status
-- **Inventory Management**: Stock levels sync between systems
-- **Menu Updates**: Menu changes propagate to POS
-- **Sales Reporting**: Unified reporting across platforms
+The platform focuses on Telegram-based notifications and manual order management for simplicity and reliability.
 
 ### Delivery Platform Integration
 
@@ -196,7 +175,6 @@ Connect with major delivery platforms to expand your reach:
 ### Integration Collections
 - **`deliveryIntegrations`** - Delivery platform connections and settings
 - **`deliveryOrders`** - Orders from delivery platforms
-- **`posIntegrations`** - POS system connections and sync status
 - **`webhookEvents`** - Incoming webhook event logs
 
 ## 🔐 Security Features
@@ -461,8 +439,7 @@ Firestore Collections:
 ### Post-Deployment Setup
 1. **Telegram Webhook**: Configure webhook URL in bot settings
 2. **Delivery Webhooks**: Set webhook URLs in each delivery platform
-3. **POS Configuration**: Configure POS system to communicate with your API
-4. **DNS Configuration**: Set up custom domain if desired
+3. **DNS Configuration**: Set up custom domain if desired
 
 ## 🔧 Configuration Examples
 
@@ -477,24 +454,6 @@ curl -X POST https://your-domain.vercel.app/api/test-message \
   -d '{"chatId": "YOUR_CHAT_ID", "message": "Test message"}'
 ```
 
-### POS Integration Example
-```javascript
-// Sync order to POS
-const response = await fetch('/api/pos-integration', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    action: 'sync_order',
-    data: {
-      orderId: 'order_123',
-      tableNumber: '5',
-      items: [...],
-      totalAmount: 25.99,
-      userId: 'user_456'
-    }
-  })
-});
-```
 
 ### Delivery Platform Webhook
 ```javascript
@@ -562,14 +521,12 @@ Body: {
 - **Storage Upload Fails**: Check storage bucket configuration
 
 #### Integration Problems
-- **POS Sync Failing**: Verify API credentials and network connectivity
 - **Delivery Orders Not Received**: Check webhook configuration and endpoints
 - **Menu Not Syncing**: Validate menu data format and API responses
 
 ### Debug Tools
 - **Webhook Info**: `/api/webhook-info` - Check Telegram webhook status
 - **Test Messages**: Use admin panel to test Telegram connectivity
-- **Integration Status**: Monitor POS and delivery integration health
 - **Error Logs**: Check Vercel function logs for detailed error information
 
 ## 🤝 Contributing

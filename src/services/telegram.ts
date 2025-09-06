@@ -329,6 +329,38 @@ ${report.cashierInfo.notes ? `📝 <b>Notes:</b> ${report.cashierInfo.notes}\n\n
     return this.sendMessage(message, telegramSettings.adminChatId);
   }
 
+  async sendFeedback(feedback: {
+    orderId: string;
+    tableNumber: string;
+    rating: number;
+    comment: string;
+    timestamp: string;
+    customerInfo?: {
+      name?: string;
+      telegramUsername?: string;
+    };
+  }, userId?: string): Promise<boolean> {
+    const telegramSettings = userId ? await this.getUserTelegramSettings(userId) : { adminChatId: DEFAULT_ADMIN_CHAT_ID };
+    
+    const stars = '⭐'.repeat(feedback.rating);
+    const customerName = feedback.customerInfo?.name || 
+                       feedback.customerInfo?.telegramUsername || 
+                       'Anonymous Customer';
+    
+    const message = `
+📝 <b>Customer Feedback - Table ${feedback.tableNumber}</b>
+
+👤 <b>Customer:</b> ${customerName}
+⭐ <b>Rating:</b> ${stars} (${feedback.rating}/5)
+📋 <b>Order ID:</b> ${feedback.orderId.slice(0, 8)}
+🕐 <b>Time:</b> ${new Date(feedback.timestamp).toLocaleString()}
+
+${feedback.comment ? `💬 <b>Comment:</b>\n"${feedback.comment}"\n\n` : ''}
+📊 <b>Keep up the great work!</b>
+    `.trim();
+    
+    return this.sendMessage(message, telegramSettings.adminChatId);
+  }
   async sendPaymentConfirmationWithButtons(confirmationId: string, tableNumber: string, total: number, method: string, userId?: string): Promise<boolean> {
     const telegramSettings = userId ? await this.getUserTelegramSettings(userId) : { cashierChatId: DEFAULT_ADMIN_CHAT_ID };
     

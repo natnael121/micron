@@ -13,7 +13,8 @@ import {
   CreditCard,
   Calendar,
   FileText,
-  X
+  X,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
@@ -37,6 +38,7 @@ export const Dashboard: React.FC = () => {
   const [dayReports, setDayReports] = useState<DayReport[]>([]);
   const [closingDay, setClosingDay] = useState(false);
   const [showCloseDayModal, setShowCloseDayModal] = useState(false);
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [cashierInfo, setCashierInfo] = useState({
     name: '',
     shift: 'morning',
@@ -53,6 +55,7 @@ export const Dashboard: React.FC = () => {
     if (user) {
       loadDashboardData();
       loadTodayStats();
+      loadFeedbacks();
     }
   }, [user]);
 
@@ -89,6 +92,20 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const loadFeedbacks = () => {
+    try {
+      const storedFeedbacks = JSON.parse(localStorage.getItem('feedbacks') || '[]');
+      // Filter feedbacks from today
+      const today = new Date().toISOString().split('T')[0];
+      const todayFeedbacks = storedFeedbacks.filter((feedback: any) => 
+        feedback.timestamp.startsWith(today)
+      );
+      setFeedbacks(todayFeedbacks);
+    } catch (error) {
+      console.error('Error loading feedbacks:', error);
+      setFeedbacks([]);
+    }
+  };
   const loadTodayStats = async () => {
     if (!user) return;
     
@@ -758,6 +775,51 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
+      {/* Recent Feedbacks */}
+      {feedbacks.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+            <MessageSquare className="w-5 h-5 text-blue-500" />
+            <span>Today's Customer Feedback ({feedbacks.length})</span>
+          </h2>
+          <div className="space-y-4">
+            {feedbacks.slice(0, 5).map((feedback, index) => (
+              <div key={index} className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <h3 className="font-medium text-gray-900">
+                      Table {feedback.tableNumber}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {feedback.customerInfo?.name || 'Anonymous Customer'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center space-x-1">
+                      {[...Array(5)].map((_, i) => (
+                        <span key={i} className={`text-lg ${
+                          i < feedback.rating ? 'text-yellow-400' : 'text-gray-300'
+                        }`}>
+                          ⭐
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {new Date(feedback.timestamp).toLocaleTimeString()}
+                    </p>
+                  </div>
+                </div>
+                
+                {feedback.comment && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-sm text-gray-700">"{feedback.comment}"</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Add Order Modal */}
       {showAddOrderModal && selectedTableForOrder && (

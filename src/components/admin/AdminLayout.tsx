@@ -12,7 +12,6 @@ import {
   Building2,
   X,
   Bell,
-  Monitor,
   Truck,
   Package
 } from 'lucide-react';
@@ -38,7 +37,6 @@ export const AdminLayout: React.FC = () => {
     { path: '/admin/waiters', icon: User, label: 'Waiters' },
     { path: '/admin/orders', icon: ShoppingBag, label: 'Orders' },
     { path: '/admin/bills', icon: Receipt, label: 'Bills' },
-    { path: '/admin/pos', icon: Monitor, label: 'POS Integration' },
     { path: '/admin/delivery', icon: Truck, label: 'Delivery Integration' },
     { path: '/admin/suppliers', icon: Package, label: 'Suppliers' },
     { path: '/admin/analytics', icon: BarChart3, label: 'Analytics' },

@@ -175,12 +175,12 @@ async function approveOrder(orderId, chatId) {
     // Send order to departments
     await sendOrderToDepartments(orderRef.id, approvedOrder);
     
-    // Sync to POS machine
+    // Sync to Telegram notifications
     try {
-      await syncOrderToPOS(approvedOrder);
-    } catch (posError) {
-      console.error('POS sync failed:', posError);
-      // Continue even if POS sync fails
+      await syncOrderToTelegram(approvedOrder);
+    } catch (telegramError) {
+      console.error('Telegram sync failed:', telegramError);
+      // Continue even if Telegram sync fails
     }
     
     // Delete pending order
@@ -242,18 +242,18 @@ async function approvePayment(confirmationId, chatId) {
       });
     }
 
-    // Process payment in POS if connected
+    // Process payment in Telegram notifications
     try {
-      await processPaymentInPOS({
+      await processPaymentInTelegram({
         orderId: confirmation.orderId || `table_${confirmation.tableNumber}_${Date.now()}`,
         paymentMethod: confirmation.method,
         amount: confirmation.total,
         transactionId: confirmationId,
         tableNumber: confirmation.tableNumber
       });
-    } catch (posError) {
-      console.error('POS payment processing failed:', posError);
-      // Continue even if POS processing fails
+    } catch (telegramError) {
+      console.error('Telegram payment processing failed:', telegramError);
+      // Continue even if Telegram processing fails
     }
     
     await sendMessage(chatId, `✅ Payment approved for Table ${confirmation.tableNumber}!\n💰 Amount: $${confirmation.total.toFixed(2)}\n💳 Method: ${confirmation.method.replace('_', ' ')}`);
@@ -432,33 +432,33 @@ async function syncOrderToPOS(order) {
     
     // Update order with POS sync status
     await db.collection('orders').doc(order.id).update({
-      posSynced: true,
-      posSyncedAt: new Date().toISOString()
+      telegramSynced: true,
+      telegramSyncedAt: new Date().toISOString()
     });
     
     return true;
   } catch (error) {
-    console.error('Error syncing order to POS:', error);
+    console.error('Error syncing order to Telegram:', error);
     return false;
   }
 }
 
-async function processPaymentInPOS(paymentData) {
+async function processPaymentInTelegram(paymentData) {
   try {
-    // Here you would process payment through your POS system
-    console.log('Payment processed in POS:', paymentData);
+    // Here you would process payment through Telegram notifications
+    console.log('Payment processed in Telegram:', paymentData);
     
     // Create payment record
     await db.collection('payments').add({
       ...paymentData,
       timestamp: new Date().toISOString(),
       status: 'completed',
-      source: 'pos_machine'
+      source: 'telegram_notification'
     });
     
     return true;
   } catch (error) {
-    console.error('Error processing payment in POS:', error);
+    console.error('Error processing payment in Telegram:', error);
     return false;
   }
 }
