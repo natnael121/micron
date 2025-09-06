@@ -320,6 +320,12 @@ export interface OrderFeedback {
   rating: number;
   comment: string;
   timestamp: string;
+  sessionId?: string;
+  customerInfo?: {
+    name?: string;
+    telegramUsername?: string;
+    telegramPhoto?: string;
+  };
 }
 
 export interface AppSettings {

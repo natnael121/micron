@@ -201,4 +201,30 @@ export class TelegramDeepLinkService {
       localStorage.removeItem('cafeTableSession');
     }
   }
+
+  /**
+   * Check if feedback was already submitted for this session
+   */
+  static hasFeedbackBeenSubmitted(sessionId: string): boolean {
+    if (typeof localStorage === 'undefined') return false;
+    
+    const feedbackStatus = localStorage.getItem(`feedback_${sessionId}`);
+    return feedbackStatus === 'true';
+  }
+
+  /**
+   * Mark feedback as submitted for this session
+   */
+  static markFeedbackSubmitted(sessionId: string): void {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(`feedback_${sessionId}`, 'true');
+    }
+  }
+
+  /**
+   * Get session-based feedback key
+   */
+  static getFeedbackKey(sessionId: string): string {
+    return `feedback_${sessionId}`;
+  }
 }

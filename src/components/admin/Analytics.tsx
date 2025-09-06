@@ -11,10 +11,12 @@ export const Analytics: React.FC = () => {
   const [stats, setStats] = useState<MenuStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d'>('30d');
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
 
   useEffect(() => {
     if (user) {
       loadAnalytics();
+      loadFeedbacks();
     }
   }, [user, dateRange]);
 
@@ -32,6 +34,25 @@ export const Analytics: React.FC = () => {
     }
   };
 
+  const loadFeedbacks = () => {
+    try {
+      const storedFeedbacks = JSON.parse(localStorage.getItem('feedbacks') || '[]');
+      
+      // Filter by date range
+      const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90;
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+      
+      const filteredFeedbacks = storedFeedbacks.filter((feedback: any) => 
+        new Date(feedback.timestamp) >= cutoffDate
+      );
+      
+      setFeedbacks(filteredFeedbacks);
+    } catch (error) {
+      console.error('Error loading feedbacks:', error);
+      setFeedbacks([]);
+    }
+  };
   const getDateRangeData = () => {
     if (!stats) return [];
     
@@ -304,6 +325,136 @@ export const Analytics: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* Customer Feedback Analytics */}
+      {feedbacks.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Customer Feedback Analytics</h2>
+          
+          {/* Feedback Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="text-center p-4 bg-gray-50 rounded-lg">
+              <div className="text-2xl font-bold text-gray-900">{feedbacks.length}</div>
+              <div className="text-sm text-gray-600">Total Feedbacks</div>
+            </div>
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">
+                {(feedbacks.reduce((sum, f) => sum + f.rating, 0) / feedbacks.length).toFixed(1)}
+              </div>
+              <div className="text-sm text-gray-600">Average Rating</div>
+            </div>
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">
+                {feedbacks.filter(f => f.rating >= 4).length}
+              </div>
+              <div className="text-sm text-gray-600">Positive Reviews</div>
+            </div>
+            <div className="text-center p-4 bg-yellow-50 rounded-lg">
+              <div className="text-2xl font-bold text-yellow-600">
+                {feedbacks.filter(f => f.comment && f.comment.trim()).length}
+              </div>
+              <div className="text-sm text-gray-600">With Comments</div>
+            </div>
+          </div>
+
+          {/* Rating Distribution */}
+          <div className="mb-6">
+            <h3 className="text-md font-semibold text-gray-900 mb-3">Rating Distribution</h3>
+            <div className="space-y-2">
+              {[5, 4, 3, 2, 1].map(rating => {
+                const count = feedbacks.filter(f => f.rating === rating).length;
+                const percentage = feedbacks.length > 0 ? (count / feedbacks.length) * 100 : 0;
+                
+                return (
+                  <div key={rating} className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-1 w-16">
+                      <span className="text-sm font-medium">{rating}</span>
+                      <span className="text-yellow-400">⭐</span>
+                    </div>
+                    <div className="flex-1 bg-gray-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full ${
+                          rating >= 4 ? 'bg-green-500' :
+                          rating >= 3 ? 'bg-yellow-500' :
+                          'bg-red-500'
+                        }`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <span className="text-sm text-gray-600 w-12">{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Recent Comments */}
+          <div>
+            <h3 className="text-md font-semibold text-gray-900 mb-3">Recent Comments</h3>
+            <div className="space-y-3">
+              {feedbacks
+                .filter(f => f.comment && f.comment.trim())
+                .slice(0, 3)
+                .map((feedback, index) => (
+                  <div key={index} className={`p-3 rounded-lg border ${
+                    feedback.rating >= 4 ? 'bg-green-50 border-green-200' :
+                    feedback.rating >= 3 ? 'bg-yellow-50 border-yellow-200' :
+                    'bg-red-50 border-red-200'
+                  }`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        {feedback.customerInfo?.telegramPhoto ? (
+                          <img 
+                            src={feedback.customerInfo.telegramPhoto} 
+                            alt={feedback.customerInfo.name || 'Customer'}
+                            className="w-6 h-6 rounded-full"
+                          />
+                        ) : (
+                          <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
+                            <span className="text-xs font-bold text-gray-600">
+                              {(feedback.customerInfo?.name || 'A').charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <span className="font-medium text-gray-900">
+                          {feedback.customerInfo?.name || feedback.customerInfo?.telegramUsername || 'Anonymous'}
+                        </span>
+                        <span className="text-sm text-gray-500">Table {feedback.tableNumber}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        {[...Array(5)].map((_, i) => (
+                          <span key={i} className={`text-sm ${
+                            i < feedback.rating ? 'text-yellow-400' : 'text-gray-300'
+                          }`}>
+                            ⭐
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-700 italic">"{feedback.comment}"</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {new Date(feedback.timestamp).toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+            </div>
+            
+            {feedbacks.filter(f => f.comment && f.comment.trim()).length > 3 && (
+              <div className="text-center mt-4">
+                <button
+                  onClick={() => {
+                    const commentsWithFeedback = feedbacks.filter(f => f.comment && f.comment.trim());
+                    alert(`${commentsWithFeedback.length} total comments received. Consider implementing a detailed feedback management system.`);
+                  }}
+                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                >
+                  View All Comments ({feedbacks.filter(f => f.comment && f.comment.trim()).length})
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

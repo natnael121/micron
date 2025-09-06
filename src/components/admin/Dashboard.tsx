@@ -56,6 +56,10 @@ export const Dashboard: React.FC = () => {
       loadDashboardData();
       loadTodayStats();
       loadFeedbacks();
+      
+      // Set up real-time feedback updates
+      const feedbackInterval = setInterval(loadFeedbacks, 30000); // Refresh every 30 seconds
+      return () => clearInterval(feedbackInterval);
     }
   }, [user]);
 
@@ -100,7 +104,13 @@ export const Dashboard: React.FC = () => {
       const todayFeedbacks = storedFeedbacks.filter((feedback: any) => 
         feedback.timestamp.startsWith(today)
       );
-      setFeedbacks(todayFeedbacks);
+      
+      // Sort by timestamp (newest first) and limit to recent ones
+      const sortedFeedbacks = todayFeedbacks
+        .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 10); // Show only last 10 feedbacks
+      
+      setFeedbacks(sortedFeedbacks);
     } catch (error) {
       console.error('Error loading feedbacks:', error);
       setFeedbacks([]);
@@ -781,13 +791,46 @@ export const Dashboard: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
             <MessageSquare className="w-5 h-5 text-blue-500" />
             <span>Today's Customer Feedback ({feedbacks.length})</span>
+            <div className="ml-auto flex items-center space-x-2">
+              <div className="flex items-center space-x-1">
+                {[...Array(5)].map((_, i) => (
+                  <span key={i} className="text-yellow-400 text-sm">⭐</span>
+                ))}
+                <span className="text-sm text-gray-600 ml-2">
+                  Avg: {(feedbacks.reduce((sum, f) => sum + f.rating, 0) / feedbacks.length).toFixed(1)}
+                </span>
+              </div>
+            </div>
           </h2>
           <div className="space-y-4">
             {feedbacks.slice(0, 5).map((feedback, index) => (
-              <div key={index} className="border rounded-lg p-4">
+              <div key={index} className={`border rounded-lg p-4 ${
+                feedback.rating >= 4 ? 'bg-green-50 border-green-200' :
+                feedback.rating >= 3 ? 'bg-yellow-50 border-yellow-200' :
+                'bg-red-50 border-red-200'
+              }`}>
                 <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <h3 className="font-medium text-gray-900">
+                  <div className="flex items-center space-x-3">
+                    {feedback.customerInfo?.telegramPhoto ? (
+                      <img 
+                        src={feedback.customerInfo.telegramPhoto} 
+                        alt={feedback.customerInfo.name || 'Customer'}
+                        className="w-8 h-8 rounded-full"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                        <span className="text-gray-600 text-sm font-bold">
+                          {(feedback.customerInfo?.name || feedback.customerInfo?.telegramUsername || 'A').charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    <div>
+                      <span className="font-medium text-gray-900">Table {feedback.tableNumber}</span>
+                      <p className="text-sm text-gray-600">
+                        {feedback.customerInfo?.name || feedback.customerInfo?.telegramUsername || 'Anonymous Customer'}
+                      </p>
+                    </div>
+                  </div>
                       Table {feedback.tableNumber}
                     </h3>
                     <p className="text-sm text-gray-600">
@@ -797,7 +840,7 @@ export const Dashboard: React.FC = () => {
                   <div className="text-right">
                     <div className="flex items-center space-x-1">
                       {[...Array(5)].map((_, i) => (
-                        <span key={i} className={`text-lg ${
+                        <span key={i} className={`text-base ${
                           i < feedback.rating ? 'text-yellow-400' : 'text-gray-300'
                         }`}>
                           ⭐
@@ -811,12 +854,38 @@ export const Dashboard: React.FC = () => {
                 </div>
                 
                 {feedback.comment && (
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm text-gray-700">"{feedback.comment}"</p>
+                  <div className="bg-white p-3 rounded-lg border">
+                    <p className="text-sm text-gray-700 italic">"{feedback.comment}"</p>
+                  </div>
+                )}
+                
+                {feedback.orderId && (
+                  <div className="mt-2 pt-2 border-t border-gray-200">
+                    <p className="text-xs text-gray-500">
+                      Order: {feedback.orderId.slice(0, 8)}...
+                      {feedback.sessionId && ` • Session: ${feedback.sessionId.slice(0, 8)}...`}
+                    </p>
                   </div>
                 )}
               </div>
             ))}
+            
+            {feedbacks.length > 5 && (
+              <div className="text-center pt-4 border-t">
+                <p className="text-sm text-gray-500">
+                  Showing 5 of {feedbacks.length} feedbacks from today
+                </p>
+                <button
+                  onClick={() => {
+                    // Show all feedbacks in a modal or navigate to analytics
+                    alert(`Total ${feedbacks.length} feedbacks received today. Check Analytics for detailed view.`);
+                  }}
+                  className="text-blue-600 hover:text-blue-700 text-sm font-medium mt-2"
+                >
+                  View All Feedbacks
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

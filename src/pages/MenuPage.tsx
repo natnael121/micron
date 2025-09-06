@@ -65,6 +65,7 @@ export const MenuPage: React.FC = () => {
   const [showAbout, setShowAbout] = useState(false);
   const [showTelegramLogin, setShowTelegramLogin] = useState(false);
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeTab, setActiveTab] = useState('home');
   const [tableBill, setTableBill] = useState<TableBill | null>(null);
@@ -79,7 +80,16 @@ export const MenuPage: React.FC = () => {
 
   useEffect(() => {
     initializeSession();
+    checkFeedbackStatus();
   }, [location]);
+
+  const checkFeedbackStatus = () => {
+    // Check if feedback was already submitted for this session
+    const sessionFeedback = localStorage.getItem(`feedback_${session?.sessionId || 'guest'}`);
+    if (sessionFeedback) {
+      setFeedbackSubmitted(true);
+    }
+  };
 
   useEffect(() => {
     if (resolvedUserId || businessSlugToUserId) {
@@ -339,7 +349,12 @@ export const MenuPage: React.FC = () => {
       
       clearCart();
       setShowCart(false);
-      setTimeout(() => setShowFeedback(true), 2000);
+      
+      // Only show feedback if not already submitted for this session
+      if (!feedbackSubmitted) {
+        setTimeout(() => setShowFeedback(true), 2000);
+      }
+      
       alert('Order submitted for approval! You will be notified once approved.');
     } catch (error) {
       console.error('Error placing order:', error);
@@ -443,7 +458,12 @@ export const MenuPage: React.FC = () => {
         
         clearCart();
         setShowPayment(false);
-        setTimeout(() => setShowFeedback(true), 2000);
+        
+        // Only show feedback if not already submitted for this session
+        if (!feedbackSubmitted) {
+          setTimeout(() => setShowFeedback(true), 2000);
+        }
+        
         alert('Payment confirmation submitted! Your order is pending approval.');
       }
     } catch (error) {
@@ -480,9 +500,36 @@ export const MenuPage: React.FC = () => {
   };
 
   const handleFeedbackSubmit = (feedback: any) => {
+    const actualUserId = resolvedUserId || businessSlugToUserId;
+    
+    // Enhanced feedback with session and customer info
+    const enhancedFeedback = {
+      ...feedback,
+      sessionId: session?.sessionId,
+      customerInfo: session?.telegramUser ? {
+        name: `${session.telegramUser.first_name} ${session.telegramUser.last_name || ''}`.trim(),
+        telegramUsername: session.telegramUser.username,
+        telegramPhoto: session.telegramUser.photo_url,
+      } : undefined,
+    };
+    
+    // Store feedback locally
     const feedbacks = JSON.parse(localStorage.getItem('feedbacks') || '[]');
-    feedbacks.push(feedback);
+    feedbacks.push(enhancedFeedback);
     localStorage.setItem('feedbacks', JSON.stringify(feedbacks));
+    
+    // Mark feedback as submitted for this session
+    if (session?.sessionId) {
+      localStorage.setItem(`feedback_${session.sessionId}`, 'true');
+      setFeedbackSubmitted(true);
+    }
+    
+    // Send to Telegram
+    if (actualUserId) {
+      telegramService.sendEnhancedFeedback(enhancedFeedback, actualUserId)
+        .catch(error => console.error('Failed to send feedback to Telegram:', error));
+    }
+    
     alert(t('thankYou'));
   };
 
@@ -698,6 +745,12 @@ export const MenuPage: React.FC = () => {
         <FeedbackModal
           orderId={lastOrderId}
           tableNumber={resolvedTableNumber || '1'}
+          sessionId={session?.sessionId}
+          customerInfo={session?.telegramUser ? {
+            name: `${session.telegramUser.first_name} ${session.telegramUser.last_name || ''}`.trim(),
+            telegramUsername: session.telegramUser.username,
+            telegramPhoto: session.telegramUser.photo_url,
+          } : undefined}
           language={settings.language}
           onClose={() => setShowFeedback(false)}
           onSubmit={handleFeedbackSubmit}

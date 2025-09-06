@@ -361,6 +361,48 @@ ${feedback.comment ? `💬 <b>Comment:</b>\n"${feedback.comment}"\n\n` : ''}
     
     return this.sendMessage(message, telegramSettings.adminChatId);
   }
+
+  async sendEnhancedFeedback(feedback: {
+    orderId: string;
+    tableNumber: string;
+    rating: number;
+    comment: string;
+    timestamp: string;
+    sessionId?: string;
+    customerInfo?: {
+      name?: string;
+      telegramUsername?: string;
+      telegramPhoto?: string;
+    };
+  }, userId?: string): Promise<boolean> {
+    const telegramSettings = userId ? await this.getUserTelegramSettings(userId) : { adminChatId: DEFAULT_ADMIN_CHAT_ID };
+    
+    const stars = '⭐'.repeat(feedback.rating);
+    const emptyStars = '☆'.repeat(5 - feedback.rating);
+    const customerName = feedback.customerInfo?.name || 
+                       feedback.customerInfo?.telegramUsername || 
+                       'Anonymous Customer';
+    
+    // Enhanced message with better formatting
+    const message = `
+📝 <b>New Customer Feedback</b>
+
+🏷️ <b>Table ${feedback.tableNumber}</b>
+👤 <b>Customer:</b> ${customerName}
+
+⭐ <b>Rating:</b> ${stars}${emptyStars} (${feedback.rating}/5)
+
+${feedback.comment ? `💬 <b>Comment:</b>\n<i>"${feedback.comment}"</i>\n` : ''}
+📋 <b>Order:</b> ${feedback.orderId.slice(0, 8)}...
+🕐 <b>Submitted:</b> ${new Date(feedback.timestamp).toLocaleString()}
+${feedback.sessionId ? `🔗 <b>Session:</b> ${feedback.sessionId.slice(0, 8)}...\n` : ''}
+${feedback.rating >= 4 ? '🎉 <b>Great feedback! Keep it up!</b>' : 
+  feedback.rating >= 3 ? '👍 <b>Good feedback. Room for improvement.</b>' : 
+  '⚠️ <b>Low rating. Consider following up with customer.</b>'}
+    `.trim();
+    
+    return this.sendMessage(message, telegramSettings.adminChatId);
+  }
   async sendPaymentConfirmationWithButtons(confirmationId: string, tableNumber: string, total: number, method: string, userId?: string): Promise<boolean> {
     const telegramSettings = userId ? await this.getUserTelegramSettings(userId) : { cashierChatId: DEFAULT_ADMIN_CHAT_ID };
     
