@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { Order, PendingOrder, OrderItem } from '../types';
 
 const BOT_TOKEN = '1941939105:AAHJ9XhL9uRyzQ9uhi3F4rKAQIbQ9D7YRs8'; // Replace with your actual bot token
@@ -38,20 +39,13 @@ class TelegramService {
 
   async setupWebhook(): Promise<boolean> {
     try {
-      const response = await fetch(`${TELEGRAM_API_URL}/setWebhook`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          url: WEBHOOK_URL,
-          allowed_updates: ['callback_query', 'message']
-        }),
+      const response = await axios.post(`${TELEGRAM_API_URL}/setWebhook`, {
+        url: WEBHOOK_URL,
+        allowed_updates: ['callback_query', 'message']
       });
       
-      const result = await response.json();
-      console.log('Webhook setup result:', result);
-      return result.ok;
+      console.log('Webhook setup result:', response.data);
+      return response.data.ok;
     } catch (error) {
       console.error('Error setting up webhook:', error);
       return false;
@@ -60,8 +54,8 @@ class TelegramService {
 
   async getWebhookInfo(): Promise<any> {
     try {
-      const response = await fetch(`${TELEGRAM_API_URL}/getWebhookInfo`);
-      return await response.json();
+      const response = await axios.get(`${TELEGRAM_API_URL}/getWebhookInfo`);
+      return response.data;
     } catch (error) {
       console.error('Error getting webhook info:', error);
       return null;
@@ -70,20 +64,13 @@ class TelegramService {
 
   async sendMessage(message: string, chatId: number): Promise<boolean> {
     try {
-      const response = await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: message,
-          parse_mode: 'HTML',
-        }),
+      const response = await axios.post(`${TELEGRAM_API_URL}/sendMessage`, {
+        chat_id: chatId,
+        text: message,
+        parse_mode: 'HTML',
       });
       
-      const result = await response.json();
-      return result.ok;
+      return response.data.ok;
     } catch (error) {
       console.error('Error sending Telegram message:', error);
       return false;
@@ -103,13 +90,13 @@ class TelegramService {
       formData.append('caption', caption);
       formData.append('parse_mode', 'HTML');
 
-      const response = await fetch(`${TELEGRAM_API_URL}/sendPhoto`, {
-        method: 'POST',
-        body: formData,
+      const response = await axios.post(`${TELEGRAM_API_URL}/sendPhoto`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
       
-      const result = await response.json();
-      return result.ok;
+      return response.data.ok;
     } catch (error) {
       console.error('Error sending Telegram photo:', error);
       return false;
@@ -531,23 +518,15 @@ ${feedback.rating >= 4 ? '🎉 <b>Great feedback! Keep it up!</b>' :
 
   private async sendMessageWithButtons(chatId: number | string, message: string, buttons: any[]): Promise<boolean> {
     try {
-      const response = await fetch(`${TELEGRAM_API_URL}/sendMessage`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chat_id: typeof chatId === 'string' ? parseInt(chatId) : chatId,
-          text: message,
-          parse_mode: 'HTML',
-          reply_markup: {
-            inline_keyboard: buttons
-          }
-        }),
+      const response = await axios.post(`${TELEGRAM_API_URL}/sendMessage`, {
+        chat_id: typeof chatId === 'string' ? parseInt(chatId) : chatId,
+        text: message,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: buttons
+        }
       });
-      
-      const result = await response.json();
-      return result.ok;
+      return response.data.ok;
     } catch (error) {
       console.error('Error sending message with buttons:', error);
       return false;
