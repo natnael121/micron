@@ -816,27 +816,6 @@ export const Dashboard: React.FC = () => {
                         src={feedback.customerInfo.telegramPhoto} 
                         alt={feedback.customerInfo.name || 'Customer'}
                         className="w-8 h-8 rounded-full"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                        <span className="text-gray-600 text-sm font-bold">
-                          {(feedback.customerInfo?.name || feedback.customerInfo?.telegramUsername || 'A').charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                    )}
-                    <div>
-                      <span className="font-medium text-gray-900">Table {feedback.tableNumber}</span>
-                      <p className="text-sm text-gray-600">
-                        {feedback.customerInfo?.name || feedback.customerInfo?.telegramUsername || 'Anonymous Customer'}
-                      </p>
-                    </div>
-                  </div>
-                      Table {feedback.tableNumber}
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      {feedback.customerInfo?.name || 'Anonymous Customer'}
-                    </p>
-                  </div>
                   <div className="text-right">
                     <div className="flex items-center space-x-1">
                       {[...Array(5)].map((_, i) => (
