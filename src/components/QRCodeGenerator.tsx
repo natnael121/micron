@@ -73,8 +73,7 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
       setGenerating(false);
     }
   };
-
- const downloadAllQRCodes = async (format: 'png' | 'pdf') => {
+const downloadAllQRCodes = async (format: 'png' | 'pdf') => {
   if (selectedTables.length === 0) return;
   setGenerating(true);
 
@@ -124,10 +123,27 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
         pdf.setFillColor(34, 197, 94); // green
         pdf.roundedRect(x + 10, y + 15, leftWidth, slotHeight - 30, 5, 5, 'F');
 
-        // Business logo placeholder (circle)
-        pdf.setFillColor(255, 255, 255);
-        pdf.circle(x + 10 + leftWidth / 2, y + 35, 12, 'F');
+         // Business logo (replace with your actual logo)
+        if (businessLogo) {
+          pdf.addImage(
+            businessLogo,
+            'PNG',
+            x + 10 + (leftWidth / 2) - 12,
+            y + 25,
+            24,
+            24
+          );
+        } else {
+          // If no logo, fallback to business initial
+          pdf.setFillColor(255, 255, 255);
+          pdf.circle(x + 10 + leftWidth / 2, y + 37, 12, 'F');
+          pdf.setTextColor(34, 197, 94);
+          pdf.setFontSize(14);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(businessName.charAt(0).toUpperCase(), x + 10 + leftWidth / 2, y + 42, { align: 'center' });
+        }
 
+        
         // Business initial
         pdf.setTextColor(34, 197, 94);
         pdf.setFontSize(14);
@@ -139,9 +155,10 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
         pdf.setFontSize(10);
         pdf.text(businessName.toUpperCase(), x + 10 + leftWidth / 2, y + slotHeight - 20, { align: 'center' });
 
-        // Table number
-        pdf.setFontSize(8);
-        pdf.text(`TABLE ${tableNumber}`, x + 10 + leftWidth / 2, y + slotHeight - 10, { align: 'center' });
+        pdf.setFontSize(16);
+        pdf.setTextColor(34, 197, 94);
+        pdf.text(`TABLE ${tableNumber}`, leftX + halfWidth / 2, innerY + innerH - 10, { align: 'center' });
+
 
         // QR code on right side
         const qrSize = 40;
@@ -173,7 +190,7 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
   }
 };
 
-
+  
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
