@@ -1,23 +1,6 @@
 import React from 'react';
-import { Plus, Clock, Star } from 'lucide-react';
+import { Plus, Clock } from 'lucide-react';
 import { ScheduledMenuItem } from '../types';
-
-// Allergen options with icons
-const ALLERGEN_OPTIONS = [
-  { id: 'gluten', name: 'Gluten', icon: '🌾' },
-  { id: 'dairy', name: 'Dairy', icon: '🥛' },
-  { id: 'nuts', name: 'Nuts', icon: '🥜' },
-  { id: 'eggs', name: 'Eggs', icon: '🥚' },
-  { id: 'soy', name: 'Soy', icon: '🫘' },
-  { id: 'fish', name: 'Fish', icon: '🐟' },
-  { id: 'shellfish', name: 'Shellfish', icon: '🦐' },
-  { id: 'sesame', name: 'Sesame', icon: '🌰' },
-  { id: 'vegan', name: 'Vegan', icon: '🌱' },
-  { id: 'vegetarian', name: 'Vegetarian', icon: '🥬' },
-  { id: 'spicy', name: 'Spicy', icon: '🌶️' },
-  { id: 'halal', name: 'Halal', icon: '☪️' },
-  { id: 'kosher', name: 'Kosher', icon: '✡️' },
-];
 
 interface MenuCardProps {
   item: ScheduledMenuItem;
@@ -26,7 +9,12 @@ interface MenuCardProps {
   theme?: 'classic' | 'modern' | 'elegant' | 'minimal';
 }
 
-export const MenuCard: React.FC<MenuCardProps> = ({ item, onClick, onAddToCart, theme = 'modern' }) => {
+export const MenuCard: React.FC<MenuCardProps> = ({
+  item,
+  onClick,
+  onAddToCart,
+  theme = 'modern',
+}) => {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (item.available && item.isCurrentlyAvailable) {
@@ -39,91 +27,68 @@ export const MenuCard: React.FC<MenuCardProps> = ({ item, onClick, onAddToCart, 
   return (
     <div
       onClick={onClick}
-      className={`bg-gray-800 rounded-3xl p-4 cursor-pointer transform transition-all duration-300 hover:scale-105 relative overflow-hidden ${
+      className={`bg-gray-800 rounded-xl p-2 sm:p-3 cursor-pointer transform transition-all duration-300 hover:scale-105 relative overflow-hidden ${
         !isAvailable ? 'opacity-75' : ''
       }`}
     >
       {/* Background gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-700/20 to-gray-900/40 rounded-3xl" />
-      
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-700/20 to-gray-900/40 rounded-xl" />
+
       {/* Content */}
       <div className="relative z-10">
         {/* Image */}
-        <div className="relative mb-4">
-          <div className="aspect-square rounded-2xl overflow-hidden bg-gray-700">
+        <div className="relative mb-2 sm:mb-3">
+          <div className="aspect-square rounded-lg overflow-hidden bg-gray-700">
             <img
-              src={item.photo || 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg'}
+              src={
+                item.photo ||
+                'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg'
+              }
               alt={item.name}
               className="w-full h-full object-cover"
               loading="lazy"
             />
           </div>
-          
+
           {/* Plus button */}
           {isAvailable && (
             <button
               onClick={handleAddToCart}
-              className="absolute -bottom-2 -right-2 w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center shadow-lg hover:bg-yellow-300 transition-colors z-20"
+              className="absolute -bottom-2 -right-2 w-7 h-7 sm:w-8 sm:h-8 bg-yellow-400 rounded-full flex items-center justify-center shadow-md hover:bg-yellow-300 transition-colors z-20"
             >
-              <Plus className="w-4 h-4 text-gray-900" />
+              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-900" />
             </button>
           )}
 
-          {/* Rating */}
-
           {/* Preparation time */}
           {item.preparation_time > 0 && (
-            <div className="absolute top-3 right-3 bg-yellow-400 rounded-full px-2 py-1 flex items-center space-x-1">
+            <div className="absolute top-2 right-2 bg-yellow-400 rounded-full px-1.5 py-0.5 flex items-center space-x-1">
               <Clock className="w-3 h-3 text-gray-900" />
-              <span className="text-gray-900 text-xs font-medium">
+              <span className="text-gray-900 text-[10px] font-medium">
                 {item.preparation_time} MIN
               </span>
             </div>
           )}
 
-          {/* Allergen icons */}
-          {item.allergens && (
-            <div className="absolute top-3 left-3 flex space-x-1">
-              {item.allergens.split(',').slice(0, 3).map((allergen, index) => {
-                const allergenData = ALLERGEN_OPTIONS.find(a => 
-                  a.name.toLowerCase() === allergen.trim().toLowerCase()
-                );
-                return allergenData ? (
-                  <div
-                    key={index}
-                    className="bg-white/90 backdrop-blur-sm rounded-full w-6 h-6 flex items-center justify-center"
-                    title={allergenData.name}
-                  >
-                    <span className="text-sm">{allergenData.icon}</span>
-                  </div>
-                ) : null;
-              })}
-              {item.allergens.split(',').length > 3 && (
-                <div className="bg-white/90 backdrop-blur-sm rounded-full w-6 h-6 flex items-center justify-center">
-                  <span className="text-xs text-gray-700 font-medium">+{item.allergens.split(',').length - 3}</span>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Availability overlay */}
           {!isAvailable && (
-            <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center">
-              <div className="text-center text-white px-2">
+            <div className="absolute inset-0 bg-black/60 rounded-lg flex items-center justify-center p-2">
+              <div className="text-center text-white text-[11px] leading-snug">
                 {!item.available ? (
-                  <span className="font-semibold text-sm">Unavailable</span>
+                  <span className="font-semibold">Unavailable</span>
                 ) : item.nextAvailableSchedule ? (
                   <div>
-                    <span className="font-semibold text-xs">Available at</span>
-                    <div className="text-xs mt-1">
+                    <span className="font-semibold">Available at</span>
+                    <div className="text-xs mt-0.5">
                       {item.nextAvailableSchedule.name}
                     </div>
                     <div className="text-xs">
-                      {item.nextAvailableSchedule.startTime}–{item.nextAvailableSchedule.endTime}
+                      {item.nextAvailableSchedule.startTime}–
+                      {item.nextAvailableSchedule.endTime}
                     </div>
                   </div>
                 ) : (
-                  <span className="font-semibold text-sm">Not Available</span>
+                  <span className="font-semibold">Not Available</span>
                 )}
               </div>
             </div>
@@ -131,17 +96,17 @@ export const MenuCard: React.FC<MenuCardProps> = ({ item, onClick, onAddToCart, 
         </div>
 
         {/* Item details */}
-        <div className="space-y-1">
-          <h3 className="text-white font-bold text-lg leading-tight line-clamp-2">
+        <div className="space-y-0.5">
+          <h3 className="text-white font-semibold text-sm sm:text-base leading-tight line-clamp-2">
             {item.name}
           </h3>
-          
+
           <div className="flex items-center justify-between">
-            <span className="text-white font-bold text-lg">
+            <span className="text-white font-bold text-sm sm:text-base">
               ${item.price.toFixed(2)}
             </span>
             {!item.isCurrentlyAvailable && item.nextAvailableSchedule && (
-              <span className="text-yellow-400 text-xs font-medium">
+              <span className="text-yellow-400 text-[10px] sm:text-xs font-medium">
                 {item.nextAvailableSchedule.name}
               </span>
             )}
