@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { X, Plus, Minus, Clock, AlertTriangle, Star, ChefHat } from 'lucide-react';
 import { ScheduledMenuItem } from '../types';
 
-// Allergen options with icons
 const ALLERGEN_OPTIONS = [
   { id: 'gluten', name: 'Gluten', icon: '🌾' },
   { id: 'dairy', name: 'Dairy', icon: '🥛' },
@@ -37,240 +36,141 @@ export const MenuDetail: React.FC<MenuDetailProps> = ({ item, onClose, onAddToCa
   const decrementQuantity = () => setQuantity(prev => Math.max(1, prev - 1));
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-900 w-full max-w-md max-h-[90vh] rounded-3xl overflow-hidden animate-slide-up flex flex-col shadow-2xl">
-        {/* Header with image */}
-        <div className="relative h-64">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2">
+      <div className="bg-gray-900 w-full max-w-md max-h-[90vh] rounded-xl overflow-hidden animate-slide-up flex flex-col shadow-xl">
+        
+        {/* Image smaller */}
+        <div className="relative h-32">
           <img
             src={item.photo || 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg'}
             alt={item.name}
             className="w-full h-full object-cover"
           />
-          
-          {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm rounded-full p-2 hover:bg-black/70 transition-all"
+            className="absolute top-2 right-2 bg-black/50 rounded-full p-1.5"
           >
-            <X className="w-5 h-5 text-white" />
+            <X className="w-4 h-4 text-white" />
           </button>
-
-          {/* Back button */}
-          <button
-            onClick={onClose}
-            className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm rounded-full p-2 hover:bg-black/70 transition-all"
-          >
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-
-          {/* Rating badge */}
-          {item.popularity_score > 0 && (
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black/50 backdrop-blur-sm rounded-full px-3 py-1 flex items-center space-x-1">
-              <Star className="w-4 h-4 text-yellow-400 fill-current" />
-              <span className="text-white text-sm font-medium">
-                {(item.popularity_score / 20).toFixed(1)}
-              </span>
-              <span className="text-gray-300 text-sm">
-                ({item.orders})
-              </span>
-            </div>
-          )}
-
-          {/* Availability overlay */}
-          {!item.available || !item.isCurrentlyAvailable ? (
-            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-              <div className="text-center text-white">
-                {!item.available ? (
-                  <span className="font-semibold text-lg">Currently Unavailable</span>
-                ) : item.nextAvailableSchedule ? (
-                  <div>
-                    <span className="font-semibold text-lg">Available at {item.nextAvailableSchedule.name}</span>
-                    <div className="text-sm mt-1">
-                      {item.nextAvailableSchedule.startTime}–{item.nextAvailableSchedule.endTime}
-                    </div>
-                  </div>
-                ) : (
-                  <span className="font-semibold text-lg">Not Currently Available</span>
-                )}
-              </div>
-            </div>
-          ) : null}
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Title and price */}
-          <div>
-            <h2 className="text-2xl font-bold text-white mb-2">{item.name}</h2>
-            <div className="flex items-center justify-between">
-              <span className="text-3xl font-bold text-yellow-400">
-                ${item.price.toFixed(2)}
-              </span>
-              {item.preparation_time > 0 && (
-                <div className="flex items-center space-x-1 bg-yellow-400 rounded-full px-3 py-1">
-                  <Clock className="w-4 h-4 text-gray-900" />
-                  <span className="text-gray-900 text-sm font-medium">
-                    {item.preparation_time} MIN
-                  </span>
-                </div>
-              )}
-            </div>
+        {/* Content compact */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-3 text-sm">
+          {/* Title only (price removed here) */}
+          <h2 className="text-base font-bold text-white">{item.name}</h2>
+
+          {/* Description shorter */}
+          <p className="text-gray-300 text-xs leading-snug line-clamp-2">
+            {item.description}
+          </p>
+
+          {/* Info Row */}
+          <div className="flex items-center justify-between text-xs text-gray-400">
+            <span className="flex items-center space-x-1">
+              <Star className="w-3 h-3 text-yellow-400" /> 
+              <span>{(item.popularity_score / 20).toFixed(1) || "4.5"}</span>
+            </span>
+            <span>100 Kcal</span>
+            {item.preparation_time > 0 && (
+              <span>{item.preparation_time} Min</span>
+            )}
           </div>
 
-          {/* Description */}
-          <p className="text-gray-300 leading-relaxed">{item.description}</p>
-
-          {/* Recipe section */}
+          {/* Recipe (compact) */}
           <div>
-            <h3 className="text-white font-semibold mb-3 flex items-center space-x-2">
-              <ChefHat className="w-5 h-5" />
+            <h3 className="text-white font-semibold mb-1 flex items-center space-x-1 text-xs">
+              <ChefHat className="w-4 h-4" />
               <span>Recipe</span>
             </h3>
-            
-            {/* Steps */}
-            <div className="space-y-3">
-              <div className="flex items-start space-x-3">
-                <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-gray-900 text-sm font-bold">1</span>
+            <div className="space-y-1">
+              <div className="flex items-start space-x-2">
+                <div className="w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center text-gray-900 text-[10px] font-bold flex-shrink-0">
+                  1
                 </div>
-                <p className="text-gray-300 text-sm">
+                <p className="text-gray-300 text-[11px] leading-snug">
                   According to the recipe, the potatoes are...
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Ingredients */}
+          {/* Ingredients (tiny grid) */}
           {item.ingredients && (
             <div>
-              <h3 className="text-white font-semibold mb-3">Ingredients</h3>
-              <div className="grid grid-cols-4 gap-3">
-                {item.ingredients.split(',').slice(0, 4).map((ingredient, index) => {
-                  const ingredientIcons = ['🥔', '🧅', '🍅', '🥩'];
+              <h3 className="text-white font-semibold mb-1 text-xs">Ingredients</h3>
+              <div className="grid grid-cols-4 gap-1.5">
+                {item.ingredients.split(',').slice(0, 4).map((ingredient, i) => {
+                  const icons = ['🥔', '🧅', '🍅', '🥩'];
                   return (
-                    <div key={index} className="text-center">
-                      <div className="w-12 h-12 bg-gray-800 rounded-xl flex items-center justify-center mb-2">
-                        <span className="text-2xl">{ingredientIcons[index] || '🥄'}</span>
+                    <div key={i} className="text-center">
+                      <div className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center mb-0.5">
+                        <span className="text-base">{icons[i] || '🥄'}</span>
                       </div>
-                      <span className="text-gray-300 text-xs">
+                      <span className="text-gray-300 text-[10px] truncate">
                         {ingredient.trim()}
                       </span>
                     </div>
                   );
                 })}
               </div>
-              {item.ingredients.split(',').length > 4 && (
-                <button className="text-yellow-400 text-sm mt-3 flex items-center space-x-1">
-                  <span>Show more</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-              )}
             </div>
           )}
 
-          {/* Allergens */}
+          {/* Allergens (tiny grid) */}
           {item.allergens && (
             <div>
-              <h3 className="text-white font-semibold mb-3 flex items-center space-x-2">
-                <AlertTriangle className="w-5 h-5 text-red-400" />
-                <span>Allergens & Dietary Information</span>
+              <h3 className="text-white font-semibold mb-1 text-xs flex items-center space-x-1">
+                <AlertTriangle className="w-3 h-3 text-red-400" />
+                <span>Allergens</span>
               </h3>
-              <div className="grid grid-cols-4 gap-3">
-                {item.allergens.split(',').map((allergen, index) => {
-                  const allergenData = ALLERGEN_OPTIONS.find(a => 
+              <div className="grid grid-cols-4 gap-1.5">
+                {item.allergens.split(',').map((allergen, i) => {
+                  const found = ALLERGEN_OPTIONS.find(a => 
                     a.name.toLowerCase() === allergen.trim().toLowerCase()
                   );
-                  return allergenData ? (
-                    <div key={index} className="text-center">
-                      <div className="w-12 h-12 bg-gray-800 rounded-xl flex items-center justify-center mb-2">
-                        <span className="text-2xl">{allergenData.icon}</span>
+                  return (
+                    <div key={i} className="text-center">
+                      <div className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center mb-0.5">
+                        <span className="text-base">{found?.icon || '⚠️'}</span>
                       </div>
-                      <span className="text-gray-300 text-xs">
-                        {allergenData.name}
-                      </span>
-                    </div>
-                  ) : (
-                    <div key={index} className="text-center">
-                      <div className="w-12 h-12 bg-red-900/20 rounded-xl flex items-center justify-center mb-2">
-                        <AlertTriangle className="w-6 h-6 text-red-400" />
-                      </div>
-                      <span className="text-red-300 text-xs">
-                        {allergen.trim()}
+                      <span className="text-gray-300 text-[10px] truncate">
+                        {found?.name || allergen}
                       </span>
                     </div>
                   );
                 })}
               </div>
-              {item.allergens.split(',').length > 4 && (
-                <button className="text-yellow-400 text-sm mt-3 flex items-center space-x-1">
-                  <span>Show more</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Legacy allergens display for items without proper allergen data */}
-          {item.allergens && !item.allergens.split(',').some(allergen => 
-            ALLERGEN_OPTIONS.some(a => a.name.toLowerCase() === allergen.trim().toLowerCase())
-          ) && (
-            <div className="flex items-start text-red-400 bg-red-900/20 px-4 py-3 rounded-xl">
-              <AlertTriangle className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
-              <div>
-                <span className="font-semibold text-sm">Allergens: </span>
-                <span className="text-sm">{item.allergens}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Schedule Information */}
-          {!item.isCurrentlyAvailable && item.nextAvailableSchedule && (
-            <div className="flex items-start text-yellow-400 bg-yellow-900/20 px-4 py-3 rounded-xl">
-              <Clock className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
-              <div>
-                <span className="font-semibold text-sm">Available during: </span>
-                <span className="text-sm">
-                  {item.nextAvailableSchedule.name} ({item.nextAvailableSchedule.startTime}–{item.nextAvailableSchedule.endTime})
-                </span>
-              </div>
             </div>
           )}
         </div>
 
-        {/* Bottom section */}
-        <div className="p-6 border-t border-gray-800">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center bg-gray-800 rounded-xl">
+        {/* Footer compact */}
+        <div className="p-3 border-t border-gray-800">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center bg-gray-800 rounded-lg">
               <button
                 onClick={decrementQuantity}
-                className="p-3 hover:bg-gray-700 rounded-l-xl transition-colors"
+                className="p-1.5 hover:bg-gray-700 rounded-l-lg"
                 disabled={!item.available || !item.isCurrentlyAvailable}
               >
-                <Minus className="w-5 h-5 text-white" />
+                <Minus className="w-3 h-3 text-white" />
               </button>
-              <span className="px-6 py-3 font-bold text-white text-lg">{quantity}</span>
+              <span className="px-3 py-1 font-bold text-white text-sm">{quantity}</span>
               <button
                 onClick={incrementQuantity}
-                className="p-3 hover:bg-gray-700 rounded-r-xl transition-colors"
+                className="p-1.5 hover:bg-gray-700 rounded-r-lg"
                 disabled={!item.available || !item.isCurrentlyAvailable}
               >
-                <Plus className="w-5 h-5 text-white" />
+                <Plus className="w-3 h-3 text-white" />
               </button>
             </div>
-
             <div className="text-right">
               {quantity > 1 && (
-                <div className="text-gray-400 text-sm mb-1">
+                <div className="text-gray-400 text-[11px] mb-0.5">
                   ${item.price.toFixed(2)} × {quantity}
                 </div>
               )}
-              <div className="text-2xl font-bold text-yellow-400">
+              <div className="text-lg font-bold text-yellow-400">
                 ${(item.price * quantity).toFixed(2)}
               </div>
             </div>
@@ -279,13 +179,13 @@ export const MenuDetail: React.FC<MenuDetailProps> = ({ item, onClose, onAddToCa
           <button
             onClick={handleAddToCart}
             disabled={!item.available || !item.isCurrentlyAvailable}
-            className="w-full bg-yellow-400 text-gray-900 py-4 rounded-xl font-bold text-lg hover:bg-yellow-300 transition-colors disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed"
+            className="w-full bg-yellow-400 text-gray-900 py-2 rounded-lg font-semibold text-sm hover:bg-yellow-300 transition-colors disabled:bg-gray-600 disabled:text-gray-400"
           >
-            {!item.available ? 'Currently Unavailable' : 
+            {!item.available ? 'Unavailable' : 
              !item.isCurrentlyAvailable ? 
                (item.nextAvailableSchedule ? 
                  `Available at ${item.nextAvailableSchedule.name}` : 
-                 'Not Currently Available') : 
+                 'Not Available Now') : 
                'Add to Order'}
           </button>
         </div>
