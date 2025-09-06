@@ -1,6 +1,6 @@
 # Multi-User Restaurant Menu Platform
 
-A comprehensive, production-ready platform where restaurant owners can create and manage their own digital menus with advanced ordering capabilities and multi-department management.
+A comprehensive, production-ready platform where restaurant owners can create and manage their own digital menus with advanced ordering capabilities, POS integration, delivery platform connectivity, and multi-department management.
 
 ## 🚀 Features Overview
 
@@ -14,6 +14,7 @@ A comprehensive, production-ready platform where restaurant owners can create an
 - **Telegram Integration**: Real-time notifications with interactive approve/reject buttons
 - **Multi-table Support**: Handle unlimited tables with unique QR codes and URLs
 - **Waiter Management**: Assign waiters to specific tables with notification routing
+- **Delivery Platform Integration**: Connect with Uber Eats, DoorDash, Grubhub, and more
 - **Professional Print Menus**: Generate high-quality PDF menus for physical display
 - **QR Code Generation**: Bulk generate and download QR codes for all tables
 - **Super Admin Dashboard**: Platform-wide management for multi-restaurant operations
@@ -51,6 +52,8 @@ A comprehensive, production-ready platform where restaurant owners can create an
 - **Telegram Bot API** with inline keyboards and webhooks
 - **ImgBB API** for image hosting and management
 - **QR Code Generation** for table identification
+- **POS System APIs** (Square, Toast, Clover support)
+- **Delivery Platform APIs** (Uber Eats, DoorDash, Grubhub)
 
 ### Development & Deployment
 - **Vite** for fast development and building
@@ -95,6 +98,15 @@ VITE_FIREBASE_APP_ID=your_app_id
 FIREBASE_PROJECT_ID=your_project_id
 FIREBASE_CLIENT_EMAIL=your_service_account_email
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nyour_private_key\n-----END PRIVATE KEY-----\n"
+
+# Optional: POS Integration
+
+# Delivery Integration
+UBER_EATS_CLIENT_ID=your_uber_eats_client_id
+UBER_EATS_CLIENT_SECRET=your_uber_eats_client_secret
+DOORDASH_API_KEY=your_doordash_api_key
+GRUBHUB_USERNAME=your_grubhub_username
+GRUBHUB_PASSWORD=your_grubhub_password
 ```
 
 ### 5. Install Dependencies
@@ -115,7 +127,33 @@ npm run dev
 
 ## 🔧 Integration Guides
 
+### POS System Integration
+
 The platform focuses on Telegram-based notifications and manual order management for simplicity and reliability.
+
+### Delivery Platform Integration
+
+Connect with major delivery platforms to expand your reach:
+
+#### Supported Platforms
+- **Uber Eats**: Full menu sync and order management
+- **DoorDash**: Real-time order notifications and status updates
+- **Grubhub**: Menu synchronization and order processing
+- **Postmates**: Order routing and customer communication
+
+#### Integration Process
+1. **Partner Registration**: Complete partner applications with each platform
+2. **API Configuration**: Add platform credentials to environment variables
+3. **Menu Synchronization**: Automatically sync your menu to all platforms
+4. **Webhook Setup**: Configure webhooks to receive orders in real-time
+5. **Order Management**: Accept/reject orders and update status across platforms
+
+#### Key Features
+- **Unified Order Management**: All delivery orders in one dashboard
+- **Automatic Menu Sync**: Changes update across all platforms
+- **Real-time Notifications**: Instant alerts for new orders
+- **Status Synchronization**: Order status updates across all platforms
+- **Analytics Integration**: Track performance across delivery channels
 
 ## 📊 Database Structure
 
@@ -134,6 +172,10 @@ The platform focuses on Telegram-based notifications and manual order management
 - **`waiterCalls`** - Waiter assistance requests
 - **`dayReports`** - Daily closing reports with analytics
 
+### Integration Collections
+- **`deliveryIntegrations`** - Delivery platform connections and settings
+- **`deliveryOrders`** - Orders from delivery platforms
+- **`webhookEvents`** - Incoming webhook event logs
 
 ## 🔐 Security Features
 
@@ -162,8 +204,26 @@ The platform focuses on Telegram-based notifications and manual order management
 
 ### Admin API Endpoints
 - **POST** `/api/telegram-webhook` - Telegram bot webhook handler
+- **POST** `/api/pos-integration` - POS system communication
+- **POST** `/api/delivery/*` - Delivery platform integration
 - **GET** `/api/webhook-info` - Telegram webhook status
 - **POST** `/api/setup-webhook` - Configure Telegram webhook
+
+### Integration APIs
+- **POS Integration**: `/api/pos-integration`
+  - Order synchronization
+  - Payment processing
+  - Inventory updates
+  - Menu synchronization
+  - Sales reporting
+
+- **Delivery Integration**: `/api/delivery/*`
+  - Restaurant connection
+  - Menu synchronization
+  - Order status updates
+  - Item availability updates
+  - Bulk price updates
+  - Webhook event processing
 
 ## 📱 Usage Guide
 
@@ -177,6 +237,7 @@ The platform focuses on Telegram-based notifications and manual order management
 5. **Add Menu Categories** and organize your menu structure
 6. **Create Menu Items** with photos, descriptions, and pricing
 7. **Generate QR Codes** for your tables
+8. **Configure Integrations** (POS, Delivery platforms)
 
 #### Daily Operations
 1. **Monitor Dashboard** for real-time metrics and pending actions
@@ -188,6 +249,8 @@ The platform focuses on Telegram-based notifications and manual order management
 #### Advanced Features
 - **Menu Scheduling**: Set different menus for breakfast, lunch, dinner
 - **Waiter Management**: Assign specific waiters to table ranges
+- **POS Integration**: Sync orders and payments with your existing POS
+- **Delivery Platforms**: Expand reach through major delivery services
 - **Print Materials**: Generate professional menus and table tents
 
 ### For Customers
@@ -267,7 +330,38 @@ Create time-based menus:
 
 ## 🔌 Integration Capabilities
 
-The platform integrates seamlessly with your existing restaurant operations through Telegram notifications and QR code-based ordering.
+### POS System Integration
+Connect with your existing POS system for unified operations:
+
+#### Supported POS Systems
+- **Square**: Complete integration with payment processing
+- **Toast**: Menu sync and order management
+- **Clover**: Inventory and sales synchronization
+- **Generic REST API**: Custom POS system support
+
+#### Integration Features
+- **Bidirectional Sync**: Orders and payments sync both ways
+- **Real-time Updates**: Instant status updates across systems
+- **Inventory Management**: Stock levels automatically updated
+- **Sales Reporting**: Unified reporting across all channels
+- **Menu Synchronization**: Keep menus consistent across platforms
+
+### Delivery Platform Integration
+Expand your reach through major delivery platforms:
+
+#### Supported Platforms
+- **Uber Eats**: Full menu sync and order management
+- **DoorDash**: Real-time notifications and status updates
+- **Grubhub**: Menu synchronization and order processing
+- **Postmates**: Order routing and customer communication
+
+#### Integration Benefits
+- **Centralized Management**: All delivery orders in one dashboard
+- **Automatic Menu Sync**: Menu changes update across all platforms
+- **Real-time Order Flow**: Instant notifications for new delivery orders
+- **Status Synchronization**: Update order status across all platforms
+- **Revenue Analytics**: Track performance by delivery channel
+- **Customer Data**: Unified customer information and order history
 
 ## 📱 Mobile App Features
 
@@ -330,6 +424,8 @@ Firestore Collections:
 ├── bills              # Generated invoices
 ├── waiterCalls        # Waiter assistance requests
 ├── dayReports         # Daily closing reports
+├── deliveryIntegrations # Delivery platform connections
+└── posIntegrations    # POS system connections
 ```
 
 ## 🚀 Deployment Guide
@@ -342,7 +438,8 @@ Firestore Collections:
 
 ### Post-Deployment Setup
 1. **Telegram Webhook**: Configure webhook URL in bot settings
-2. **DNS Configuration**: Set up custom domain if desired
+2. **Delivery Webhooks**: Set webhook URLs in each delivery platform
+3. **DNS Configuration**: Set up custom domain if desired
 
 ## 🔧 Configuration Examples
 
@@ -355,6 +452,23 @@ https://api.telegram.org/bot{BOT_TOKEN}/setWebhook?url=https://your-domain.verce
 curl -X POST https://your-domain.vercel.app/api/test-message \
   -H "Content-Type: application/json" \
   -d '{"chatId": "YOUR_CHAT_ID", "message": "Test message"}'
+```
+
+
+### Delivery Platform Webhook
+```javascript
+// Receive order from delivery platform
+POST /api/delivery/webhook
+Headers: X-Delivery-Company: uber_eats
+Body: {
+  "type": "order_placed",
+  "data": {
+    "restaurantId": "user_123",
+    "customer": {...},
+    "items": [...],
+    "subtotal": 25.99
+  }
+}
 ```
 
 ## 📈 Analytics & Reporting

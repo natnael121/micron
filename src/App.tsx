@@ -12,8 +12,22 @@ import { BillManagement } from './components/admin/BillManagement';
 import { Analytics } from './components/admin/Analytics';
 import { Settings } from './components/admin/Settings';
 import { WaiterManagement } from './components/admin/WaiterManagement';
+import { DeliveryIntegration } from './components/admin/DeliveryIntegration';
+import { SupplierManagement } from './components/admin/SupplierManagement';
 import { SuperAdminLogin } from './components/admin/SuperAdminLogin';
 import { SuperAdminDashboard } from './components/admin/SuperAdminDashboard';
+import { SuperAdminSuppliers } from './components/admin/SuperAdminSuppliers';
+import { SupplierLayout } from './components/supplier/SupplierLayout';
+import { SupplierLogin } from './components/supplier/SupplierLogin';
+import { SupplierDashboard } from './components/supplier/SupplierDashboard';
+import { SupplierSignup } from './components/supplier/SupplierSignup';
+import { SupplierOrders } from './components/supplier/SupplierOrders';
+import { SupplierCustomers } from './components/supplier/SupplierCustomers';
+import { SupplierProducts } from './components/supplier/SupplierProducts';
+import { SupplierInvoices } from './components/supplier/SupplierInvoices';
+import { SupplierMap } from './components/supplier/SupplierMap';
+import { SupplierAnalytics } from './components/supplier/supplierAnalytics';
+import { SupplierSettings } from './components/supplier/SupplierSettings';
 import { MenuPage } from './pages/MenuPage';
 
 function App() {
@@ -42,6 +56,20 @@ function App() {
         <Route path="/:businessSlug/table/:tableNumber" element={<MenuPage />} />
         <Route path="/menu" element={<MenuPage />} />
         
+        {/* Supplier Routes */}
+        <Route path="/supplier/login" element={<SupplierLogin />} />
+        <Route path="/supplier/signup" element={<SupplierSignup />} />
+        <Route path="/supplier" element={<SupplierLayout />}>
+          <Route index element={<SupplierDashboard />} />
+          <Route path="orders" element={<SupplierOrders />} />
+          <Route path="customers" element={<SupplierCustomers />} />
+          <Route path="products" element={<SupplierProducts />} />
+          <Route path="invoices" element={<SupplierInvoices />} />
+          <Route path="map" element={<SupplierMap />} />
+          <Route path="analytics" element={<SupplierAnalytics />} />
+          <Route path="settings" element={<SupplierSettings />} />
+        </Route>
+        
         {/* Super Admin Routes */}
         <Route path="/super-admin/login" element={<SuperAdminLogin />} />
         <Route path="/super-admin" element={
@@ -49,6 +77,12 @@ function App() {
             <SuperAdminDashboard /> : 
             <Navigate to="/super-admin/login" replace />
         } />
+        <Route path="/super-admin/suppliers" element={
+          user && user.email === 'natnaeltsegaye70@gmail.com' ? 
+            <SuperAdminSuppliers /> : 
+            <Navigate to="/super-admin/login" replace />
+        } />
+        
         {/* Protected Admin Routes */}
         <Route path="/admin" element={user ? <AdminLayout /> : <Navigate to="/login" replace />}>
           <Route index element={<Dashboard />} />
@@ -57,6 +91,8 @@ function App() {
           <Route path="waiters" element={<WaiterManagement />} />
           <Route path="orders" element={<OrderManagement />} />
           <Route path="bills" element={<BillManagement />} />
+          <Route path="delivery" element={<DeliveryIntegration />} />
+          <Route path="suppliers" element={<SupplierManagement />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
         </Route>

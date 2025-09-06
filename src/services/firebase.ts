@@ -33,6 +33,19 @@ import {
   MenuSchedule,
   ScheduledMenuItem
 } from '../types';
+import { 
+  Supplier, 
+  SupplierProduct, 
+  PurchaseOrder, 
+  SupplierInvoice,
+  RestaurantCustomer,
+  SupplierUser
+} from '../types/supplier';
+import { 
+  DeliveryIntegration,
+  DeliveryOrder,
+  DeliveryWebhookEvent
+} from '../types/delivery';
 
 class FirebaseService {
   // =======================
@@ -958,6 +971,274 @@ class FirebaseService {
   }
 
   // =======================
+  // Supplier Management
+  // =======================
+  
+  async addSupplier(supplier: Omit<Supplier, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, 'suppliers'), {
+        ...supplier,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding supplier:', error);
+      throw error;
+    }
+  }
+
+  async getSuppliers(restaurantId: string): Promise<Supplier[]> {
+    try {
+      const suppliers: Supplier[] = [];
+      
+      // Get global suppliers
+      const globalQuery = query(
+        collection(db, 'suppliers'),
+        where('type', '==', 'global'),
+        where('isActive', '==', true)
+      );
+      const globalSnapshot = await getDocs(globalQuery);
+      globalSnapshot.docs.forEach(doc => {
+        suppliers.push({ id: doc.id, ...doc.data() } as Supplier);
+      });
+      
+      // Get restaurant-specific suppliers
+      const restaurantQuery = query(
+        collection(db, 'suppliers'),
+        where('type', '==', 'restaurant_specific'),
+        where('restaurantId', '==', restaurantId),
+        where('isActive', '==', true)
+      );
+      const restaurantSnapshot = await getDocs(restaurantQuery);
+      restaurantSnapshot.docs.forEach(doc => {
+        suppliers.push({ id: doc.id, ...doc.data() } as Supplier);
+      });
+      
+      return suppliers.sort((a, b) => a.name.localeCompare(b.name));
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+      throw error;
+    }
+  }
+
+  async getAllSuppliers(): Promise<Supplier[]> {
+    try {
+      const snapshot = await getDocs(collection(db, 'suppliers'));
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Supplier));
+    } catch (error) {
+      console.error('Error fetching all suppliers:', error);
+      throw error;
+    }
+  }
+// =======================
+// Supplier Products Management
+// =======================
+
+async getAllSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
+  try {
+    console.log('Firebase: Loading all products for supplier:', supplierId);
+    
+    // Use the correct field name 'supplierId' (with capital I)
+    const q = query(
+      collection(db, 'supplierProducts'),
+      where('supplierId', '==', supplierId)
+    );
+    
+    const snapshot = await getDocs(q);
+    const products = snapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      ...doc.data() 
+    } as SupplierProduct));
+    
+    console.log('Firebase: Products found for supplier:', products.length);
+    
+    // Sort by category and name
+    const sortedProducts = products.sort((a, b) => {
+      if (a.category !== b.category) {
+        return a.category.localeCompare(b.category);
+      }
+      return a.name.localeCompare(b.name);
+    });
+    
+    console.log('Firebase: Sorted products:', sortedProducts.length);
+    return sortedProducts;
+  } catch (error) {
+    console.error('Firebase: Error fetching all supplier products:', error);
+    // Return empty array instead of throwing to prevent UI crashes
+    return [];
+  }
+}
+
+async getSupplierProducts(supplierId: string): Promise<SupplierProduct[]> {
+  try {
+    console.log('Firebase: Loading available products for supplier:', supplierId);
+    
+    // First get all products, then filter for availability
+    const allProducts = await this.getAllSupplierProducts(supplierId);
+    const availableProducts = allProducts.filter(product => product.isAvailable);
+    
+    console.log('Firebase: Available products:', availableProducts.length);
+    return availableProducts;
+  } catch (error) {
+    console.error('Firebase: Error fetching supplier products:', error);
+    return [];
+  }
+}
+
+async addSupplierProduct(product: Omit<SupplierProduct, 'id'>): Promise<string> {
+  try {
+    console.log('Firebase: Adding supplier product:', product.name, 'for supplier:', product.supplierId);
+    const docRef = await addDoc(collection(db, 'supplierProducts'), {
+      ...product,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    console.log('Firebase: Product added with ID:', docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error adding supplier product:', error);
+    throw error;
+  }
+}
+
+async updateSupplierProduct(id: string, updates: Partial<SupplierProduct>): Promise<void> {
+  try {
+    console.log('Firebase: Updating supplier product:', id, updates);
+    const docRef = doc(db, 'supplierProducts', id);
+    await updateDoc(docRef, {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    });
+    console.log('Firebase: Product updated successfully');
+  } catch (error) {
+    console.error('Error updating supplier product:', error);
+    throw error;
+  }
+}
+
+async deleteSupplierProduct(id: string): Promise<void> {
+  try {
+    await deleteDoc(doc(db, 'supplierProducts', id));
+  } catch (error) {
+    console.error('Error deleting supplier product:', error);
+    throw error;
+  }
+}
+
+// =======================
+// Purchase Orders Management
+// =======================
+
+async getPurchaseOrders(restaurantId: string): Promise<PurchaseOrder[]> {
+  try {
+    const q = query(
+      collection(db, 'purchaseOrders'),
+      where('restaurantId', '==', restaurantId),
+      orderBy('created_at', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PurchaseOrder));
+  } catch (error) {
+    console.error('Error fetching purchase orders:', error);
+    throw error;
+  }
+}
+
+async getSupplierOrders(supplierId: string): Promise<PurchaseOrder[]> {
+  try {
+    console.log('Firebase: Loading orders for supplier:', supplierId);
+    
+    // Use the correct field name 'supplierId' (with capital I)
+    const q = query(
+      collection(db, 'purchaseOrders'),
+      where('supplierId', '==', supplierId),
+      orderBy('created_at', 'desc')
+    );
+    
+    const snapshot = await getDocs(q);
+    const orders = snapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      ...doc.data() 
+    } as PurchaseOrder));
+    
+    console.log('Firebase: Orders found for supplier:', orders.length);
+    return orders;
+  } catch (error) {
+    console.error('Error fetching supplier orders:', error);
+    return [];
+  }
+}
+
+async getSupplierCustomers(supplierId: string): Promise<RestaurantCustomer[]> {
+  try {
+    // Get all purchase orders for this supplier
+    const orders = await this.getSupplierOrders(supplierId);
+    
+    // Group by restaurant and calculate stats
+    const customerStats: Record<string, {
+      orders: PurchaseOrder[];
+      totalSpent: number;
+      totalOrders: number;
+    }> = {};
+
+    orders.forEach(order => {
+      if (!customerStats[order.restaurantId]) {
+        customerStats[order.restaurantId] = {
+          orders: [],
+          totalSpent: 0,
+          totalOrders: 0
+        };
+      }
+      customerStats[order.restaurantId].orders.push(order);
+      customerStats[order.restaurantId].totalSpent += order.total;
+      customerStats[order.restaurantId].totalOrders += 1;
+    });
+
+    // Get restaurant details and create customer objects
+    const customers: RestaurantCustomer[] = [];
+    
+    for (const [restaurantId, stats] of Object.entries(customerStats)) {
+      try {
+        const restaurant = await this.getUserProfile(restaurantId);
+        if (restaurant) {
+          const lastOrder = stats.orders.sort((a, b) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          )[0];
+
+          customers.push({
+            id: restaurantId,
+            name: restaurant.businessName || restaurant.name || 'Unknown Restaurant',
+            contactEmail: restaurant.email,
+            contactPhone: restaurant.phone || '',
+            address: {
+              line1: restaurant.address || '',
+              city: restaurant.city || '',
+              state: restaurant.state || '',
+              postalCode: restaurant.postalCode || '',
+              country: restaurant.country || 'US',
+              latitude: restaurant.latitude,
+              longitude: restaurant.longitude,
+            },
+            totalOrders: stats.totalOrders,
+            totalSpent: stats.totalSpent,
+            lastOrderDate: lastOrder?.created_at,
+            averageOrderValue: stats.totalSpent / stats.totalOrders,
+            status: 'active'
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching restaurant ${restaurantId}:`, error);
+      }
+    }
+
+    return customers.sort((a, b) => b.totalSpent - a.totalSpent);
+  } catch (error) {
+    console.error('Error fetching supplier customers:', error);
+    return [];
+  }
+}
+
   // =======================
   // Real-time Listeners
   // =======================
@@ -1014,6 +1295,94 @@ class FirebaseService {
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WaiterCall));
     } catch (error) {
       console.error('Error fetching waiter calls:', error);
+      throw error;
+    }
+  }
+
+  // =======================
+  // Delivery Integration
+  // =======================
+  
+  async getDeliveryIntegrations(userId: string): Promise<DeliveryIntegration[]> {
+    try {
+      const q = query(
+        collection(db, 'deliveryIntegrations'),
+        where('userId', '==', userId),
+        orderBy('created_at', 'desc')
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryIntegration));
+    } catch (error) {
+      console.error('Error fetching delivery integrations:', error);
+      throw error;
+    }
+  }
+
+  async addDeliveryIntegration(integration: Omit<DeliveryIntegration, 'id'>): Promise<string> {
+    try {
+      const docRef = await addDoc(collection(db, 'deliveryIntegrations'), integration);
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding delivery integration:', error);
+      throw error;
+    }
+  }
+
+  async updateDeliveryIntegration(id: string, updates: Partial<DeliveryIntegration>): Promise<void> {
+    try {
+      const docRef = doc(db, 'deliveryIntegrations', id);
+      await updateDoc(docRef, updates);
+    } catch (error) {
+      console.error('Error updating delivery integration:', error);
+      throw error;
+    }
+  }
+
+  async getDeliveryOrders(userId: string, limitCount?: number): Promise<DeliveryOrder[]> {
+    try {
+      let q = query(
+        collection(db, 'deliveryOrders'),
+        where('restaurantId', '==', userId),
+        orderBy('orderTime', 'desc')
+      );
+      
+      if (limitCount) {
+        q = query(q, limit(limitCount));
+      }
+      
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DeliveryOrder));
+    } catch (error) {
+      console.error('Error fetching delivery orders:', error);
+      return [];
+    }
+  }
+
+  async getOrderByDeliveryId(deliveryOrderId: string): Promise<Order | null> {
+    try {
+      const q = query(
+        collection(db, 'orders'),
+        where('deliveryInfo.orderId', '==', deliveryOrderId)
+      );
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        return { id: doc.id, ...doc.data() } as Order;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching order by delivery ID:', error);
+      return null;
+    }
+  }
+
+  async updateWebhookEvent(id: string, updates: any): Promise<void> {
+    try {
+      const docRef = doc(db, 'deliveryWebhookEvents', id);
+      await updateDoc(docRef, updates);
+    } catch (error) {
+      console.error('Error updating webhook event:', error);
       throw error;
     }
   }
