@@ -1353,38 +1353,71 @@ async getSupplierCustomers(supplierId: string): Promise<RestaurantCustomer[]> {
   }
 
   // =======================
-  // Customer Notifications
+  // Customer-specific Real-time Listeners
   // =======================
 
-  listenToCustomerNotifications(userId: string, tableNumber: string, callback: (notifications: any[]) => void): () => void {
+  listenToTableOrders(userId: string, tableNumber: string, callback: (orders: Order[]) => void): () => void {
     const q = query(
-      collection(db, 'customerNotifications'),
+      collection(db, 'orders'),
       where('userId', '==', userId),
       where('tableNumber', '==', tableNumber),
-      where('read', '==', false),
       orderBy('timestamp', 'desc'),
       limit(10)
     );
     
     return onSnapshot(q, (snapshot) => {
-      const notifications = snapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data() 
-      }));
-      callback(notifications);
+      const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+      callback(orders);
     });
   }
 
-  async markNotificationAsRead(notificationId: string): Promise<void> {
-    try {
-      const docRef = doc(db, 'customerNotifications', notificationId);
-      await updateDoc(docRef, {
-        read: true,
-        readAt: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-    }
+  listenToTablePayments(userId: string, tableNumber: string, callback: (confirmations: PaymentConfirmation[]) => void): () => void {
+    const q = query(
+      collection(db, 'paymentConfirmations'),
+      where('userId', '==', userId),
+      where('tableNumber', '==', tableNumber),
+      orderBy('timestamp', 'desc'),
+      limit(5)
+    );
+    
+    return onSnapshot(q, (snapshot) => {
+      const confirmations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PaymentConfirmation));
+      callback(confirmations);
+    });
+  }
+
+  listenToTableWaiterCalls(userId: string, tableNumber: string, callback: (calls: WaiterCall[]) => void): () => void {
+    const q = query(
+      collection(db, 'waiterCalls'),
+      where('userId', '==', userId),
+      where('tableNumber', '==', tableNumber),
+      orderBy('timestamp', 'desc'),
+      limit(5)
+    );
+    
+    return onSnapshot(q, (snapshot) => {
+      const calls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WaiterCall));
+      callback(calls);
+    });
+  }
+
+  listenToTableBill(userId: string, tableNumber: string, callback: (bill: TableBill | null) => void): () => void {
+    const q = query(
+      collection(db, 'tableBills'),
+      where('userId', '==', userId),
+      where('tableNumber', '==', tableNumber),
+      where('status', '==', 'active'),
+      limit(1)
+    );
+    
+    return onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        callback({ id: doc.id, ...doc.data() } as TableBill);
+      } else {
+        callback(null);
+      }
+    });
   }
 
   async getWaiterCalls(userId: string): Promise<WaiterCall[]> {

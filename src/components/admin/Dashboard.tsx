@@ -57,20 +57,9 @@ export const Dashboard: React.FC = () => {
       loadTodayStats();
       loadFeedbacks();
       
-      // Auto-refresh dashboard every 30 seconds
-      const refreshInterval = setInterval(() => {
-        loadDashboardData();
-        loadTodayStats();
-        loadFeedbacks();
-      }, 30000);
-      
       // Set up real-time feedback updates
       const feedbackInterval = setInterval(loadFeedbacks, 30000); // Refresh every 30 seconds
-      
-      return () => {
-        clearInterval(refreshInterval);
-        clearInterval(feedbackInterval);
-      };
+      return () => clearInterval(feedbackInterval);
     }
   }, [user]);
 

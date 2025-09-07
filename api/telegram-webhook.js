@@ -119,14 +119,6 @@ async function approveOrder(orderId, chatId) {
     // Add to orders collection
     const orderRef = await db.collection('orders').add(approvedOrder);
     
-    // Send notification to customer (menu page)
-    await sendCustomerNotification(pendingOrder.userId, pendingOrder.tableNumber, {
-      type: 'order_approved',
-      title: '✅ Order Approved!',
-      message: `Your order for Table ${pendingOrder.tableNumber} has been approved and sent to the kitchen.`,
-      orderId: orderRef.id
-    });
-    
     // Add to table bill
     const existingBillQuery = await db.collection('tableBills')
       .where('userId', '==', pendingOrder.userId)
@@ -235,14 +227,6 @@ async function approvePayment(confirmationId, chatId) {
       processedAt: new Date().toISOString()
     });
     
-    // Send notification to customer (menu page)
-    await sendCustomerNotification(confirmation.userId, confirmation.tableNumber, {
-      type: 'payment_approved',
-      title: '💳 Payment Approved!',
-      message: `Your payment of $${confirmation.total.toFixed(2)} for Table ${confirmation.tableNumber} has been approved.`,
-      amount: confirmation.total
-    });
-    
     // Mark table bill as paid
     const tableBillQuery = await db.collection('tableBills')
       .where('userId', '==', confirmation.userId)
@@ -292,14 +276,6 @@ async function rejectPayment(confirmationId, chatId) {
     await db.collection('paymentConfirmations').doc(confirmationId).update({
       status: 'rejected',
       processedAt: new Date().toISOString()
-    });
-    
-    // Send notification to customer (menu page)
-    await sendCustomerNotification(confirmation.userId, confirmation.tableNumber, {
-      type: 'payment_rejected',
-      title: '❌ Payment Rejected',
-      message: `Your payment for Table ${confirmation.tableNumber} was rejected. Please try again or contact staff.`,
-      amount: confirmation.total
     });
     
     await sendMessage(chatId, `❌ Payment rejected for Table ${confirmation.tableNumber}\n💰 Amount: $${confirmation.total.toFixed(2)}`);
@@ -589,28 +565,4 @@ Contact your restaurant admin for assistance.
   `.trim();
   
   await sendMessage(chatId, message);
-}
-
-// Send notification to customer on menu page
-async function sendCustomerNotification(userId, tableNumber, notification) {
-  try {
-    // Store notification in a collection that the menu page can listen to
-    await db.collection('customerNotifications').add({
-      userId,
-      tableNumber,
-      type: notification.type,
-      title: notification.title,
-      message: notification.message,
-      data: {
-        orderId: notification.orderId,
-        amount: notification.amount
-      },
-      timestamp: new Date().toISOString(),
-      read: false
-    });
-    
-    console.log(`Customer notification sent for Table ${tableNumber}:`, notification.title);
-  } catch (error) {
-    console.error('Error sending customer notification:', error);
-  }
 }

@@ -95,37 +95,6 @@ export const MenuPage: React.FC = () => {
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
-
-  // Listen for customer notifications
-  useEffect(() => {
-    const actualUserId = resolvedUserId || businessSlugToUserId;
-    if (!actualUserId || !resolvedTableNumber) return;
-
-    // Set up real-time listener for customer notifications
-    const unsubscribe = firebaseService.listenToCustomerNotifications(
-      actualUserId,
-      resolvedTableNumber,
-      (notifications) => {
-        notifications.forEach(notification => {
-          if (!notification.read) {
-            // Show toast notification
-            addToast({
-              type: notification.type === 'order_approved' ? 'success' : 
-                    notification.type === 'payment_approved' ? 'success' : 
-                    notification.type === 'payment_rejected' ? 'error' : 'info',
-              title: notification.title,
-              message: notification.message
-            });
-
-            // Mark as read
-            firebaseService.markNotificationAsRead(notification.id);
-          }
-        });
-      }
-    );
-
-    return () => unsubscribe();
-  }, [resolvedUserId, businessSlugToUserId, resolvedTableNumber]);
   useEffect(() => {
     initializeSession();
     checkFeedbackStatus();
