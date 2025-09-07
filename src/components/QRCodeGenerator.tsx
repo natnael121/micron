@@ -122,7 +122,7 @@ const downloadAllQRCodes = async (format: 'png' | 'pdf') => {
         const qrDataURL = qrCodes[tableNumber] || await generateQRCode(tableNumber);
 
         // Card background
-        pdf.setFillColor(255, 255, 255);
+        pdf.setFillColor(107, 114, 128);
         pdf.roundedRect(x + 5, y + 5, slotWidth - 10, slotHeight - 10, 5, 5, 'F');
 
         // Left branding area
