@@ -52,7 +52,6 @@ A comprehensive, production-ready platform where restaurant owners can create an
 - **Telegram Bot API** with inline keyboards and webhooks
 - **ImgBB API** for image hosting and management
 - **QR Code Generation** for table identification
-- **POS System APIs** (Square, Toast, Clover support)
 - **Delivery Platform APIs** (Uber Eats, DoorDash, Grubhub)
 
 ### Development & Deployment
@@ -131,30 +130,6 @@ npm run dev
 
 The platform focuses on Telegram-based notifications and manual order management for simplicity and reliability.
 
-### Delivery Platform Integration
-
-Connect with major delivery platforms to expand your reach:
-
-#### Supported Platforms
-- **Uber Eats**: Full menu sync and order management
-- **DoorDash**: Real-time order notifications and status updates
-- **Grubhub**: Menu synchronization and order processing
-- **Postmates**: Order routing and customer communication
-
-#### Integration Process
-1. **Partner Registration**: Complete partner applications with each platform
-2. **API Configuration**: Add platform credentials to environment variables
-3. **Menu Synchronization**: Automatically sync your menu to all platforms
-4. **Webhook Setup**: Configure webhooks to receive orders in real-time
-5. **Order Management**: Accept/reject orders and update status across platforms
-
-#### Key Features
-- **Unified Order Management**: All delivery orders in one dashboard
-- **Automatic Menu Sync**: Changes update across all platforms
-- **Real-time Notifications**: Instant alerts for new orders
-- **Status Synchronization**: Order status updates across all platforms
-- **Analytics Integration**: Track performance across delivery channels
-
 ## 📊 Database Structure
 
 ### Core Collections
@@ -171,11 +146,6 @@ Connect with major delivery platforms to expand your reach:
 - **`bills`** - Generated invoices and billing records
 - **`waiterCalls`** - Waiter assistance requests
 - **`dayReports`** - Daily closing reports with analytics
-
-### Integration Collections
-- **`deliveryIntegrations`** - Delivery platform connections and settings
-- **`deliveryOrders`** - Orders from delivery platforms
-- **`webhookEvents`** - Incoming webhook event logs
 
 ## 🔐 Security Features
 
@@ -204,26 +174,9 @@ Connect with major delivery platforms to expand your reach:
 
 ### Admin API Endpoints
 - **POST** `/api/telegram-webhook` - Telegram bot webhook handler
-- **POST** `/api/pos-integration` - POS system communication
 - **POST** `/api/delivery/*` - Delivery platform integration
 - **GET** `/api/webhook-info` - Telegram webhook status
 - **POST** `/api/setup-webhook` - Configure Telegram webhook
-
-### Integration APIs
-- **POS Integration**: `/api/pos-integration`
-  - Order synchronization
-  - Payment processing
-  - Inventory updates
-  - Menu synchronization
-  - Sales reporting
-
-- **Delivery Integration**: `/api/delivery/*`
-  - Restaurant connection
-  - Menu synchronization
-  - Order status updates
-  - Item availability updates
-  - Bulk price updates
-  - Webhook event processing
 
 ## 📱 Usage Guide
 
@@ -249,7 +202,6 @@ Connect with major delivery platforms to expand your reach:
 #### Advanced Features
 - **Menu Scheduling**: Set different menus for breakfast, lunch, dinner
 - **Waiter Management**: Assign specific waiters to table ranges
-- **POS Integration**: Sync orders and payments with your existing POS
 - **Delivery Platforms**: Expand reach through major delivery services
 - **Print Materials**: Generate professional menus and table tents
 
@@ -424,8 +376,7 @@ Firestore Collections:
 ├── bills              # Generated invoices
 ├── waiterCalls        # Waiter assistance requests
 ├── dayReports         # Daily closing reports
-├── deliveryIntegrations # Delivery platform connections
-└── posIntegrations    # POS system connections
+└── deliveryIntegrations # Delivery platform connections
 ```
 
 ## 🚀 Deployment Guide

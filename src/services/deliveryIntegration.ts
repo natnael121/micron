@@ -8,7 +8,7 @@ import {
   DeliveryWebhookEvent,
   DeliveryAnalytics
 } from '../types/delivery';
-import { MenuItem, Category, User } from '../types';
+import { MenuItem, Category, User, Order } from '../types';
 
 class DeliveryIntegrationService {
   private baseUrl: string;

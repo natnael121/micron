@@ -89,16 +89,6 @@ export interface WaiterAssignment {
   updated_at?: string;
 }
 
-export interface WaiterCall {
-  id: string;
-  userId: string;
-  tableNumber: string;
-  waiterName?: string;
-  timestamp: string;
-  status: 'pending' | 'acknowledged' | 'completed';
-  updatedAt?: string;
-}
-
 export interface MenuItem {
   id: string;
   name: string;
@@ -139,6 +129,16 @@ export interface MenuSchedule {
   isActive: boolean;
   order: number;
   created_at: string;
+}
+
+export interface WaiterCall {
+  id: string;
+  userId: string;
+  tableNumber: string;
+  waiterName?: string;
+  timestamp: string;
+  status: 'pending' | 'acknowledged' | 'completed';
+  updatedAt?: string;
 }
 
 export interface ScheduledMenuItem extends MenuItem {
