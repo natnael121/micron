@@ -20,6 +20,7 @@ import { telegramService } from '../services/telegram';
 import { AnalyticsService } from '../services/analytics';
 import { useTranslation } from '../utils/translations';
 import { useMenuTheme } from '../hooks/useMenuTheme';
+import { useCustomerNotifications } from '../hooks/useCustomerNotifications';
 import { TelegramDeepLinkService } from '../utils/telegramDeepLink';
 import { TelegramUser, CafeTableSession, Category } from '../types';
 import { NotificationToast } from '../components/NotificationToast';
@@ -78,6 +79,7 @@ export const MenuPage: React.FC = () => {
   const [botUsername, setBotUsername] = useState<string>('');
   const [businessSlugToUserId, setBusinessSlugToUserId] = useState<string | null>(null);
   const t = useTranslation(settings.language);
+  const { isEnabled: notificationsEnabled, requestPermission } = useCustomerNotifications();
   const [toasts, setToasts] = useState<Array<{
     id: string;
     type: 'success' | 'error' | 'info' | 'warning';
