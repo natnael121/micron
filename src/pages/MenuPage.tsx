@@ -22,6 +22,7 @@ import { useTranslation } from '../utils/translations';
 import { useMenuTheme } from '../hooks/useMenuTheme';
 import { TelegramDeepLinkService } from '../utils/telegramDeepLink';
 import { TelegramUser, CafeTableSession, Category } from '../types';
+import { NotificationToast } from '../components/NotificationToast';
 
 export const MenuPage: React.FC = () => {
   const { userId, tableNumber } = useParams<{ userId: string; tableNumber: string }>();
@@ -77,7 +78,21 @@ export const MenuPage: React.FC = () => {
   const [botUsername, setBotUsername] = useState<string>('');
   const [businessSlugToUserId, setBusinessSlugToUserId] = useState<string | null>(null);
   const t = useTranslation(settings.language);
+  const [toasts, setToasts] = useState<Array<{
+    id: string;
+    type: 'success' | 'error' | 'info' | 'warning';
+    title: string;
+    message: string;
+  }>>([]);
 
+  const addToast = (toast: Omit<typeof toasts[0], 'id'>) => {
+    const id = Date.now().toString();
+    setToasts(prev => [...prev, { ...toast, id }]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
   useEffect(() => {
     initializeSession();
     checkFeedbackStatus();
@@ -87,6 +102,27 @@ export const MenuPage: React.FC = () => {
     // Check if feedback was already submitted for this session
     const sessionFeedback = localStorage.getItem(`feedback_${session?.sessionId || 'guest'}`);
     if (sessionFeedback) {
+  // Handle URL actions from notifications
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('action');
+    
+    if (action === 'view_bill') {
+      setTimeout(() => setShowBill(true), 1000);
+    } else if (action === 'retry_payment') {
+      setTimeout(() => {
+        setIsPayingBill(true);
+        setShowPayment(true);
+      }, 1000);
+    }
+    
+    // Clean up URL
+    if (action) {
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, []);
+
       setFeedbackSubmitted(true);
     }
   };
@@ -350,15 +386,24 @@ export const MenuPage: React.FC = () => {
       clearCart();
       setShowCart(false);
       
+      // Show success toast
+      addToast({
+        type: 'success',
+        title: t('orderConfirmed'),
+        message: `Order submitted for Table ${resolvedTableNumber}. You'll be notified when approved.`
+      });
+      
       // Only show feedback if not already submitted for this session
       if (!feedbackSubmitted) {
         setTimeout(() => setShowFeedback(true), 2000);
       }
-      
-      alert('Order submitted for approval! You will be notified once approved.');
     } catch (error) {
       console.error('Error placing order:', error);
-      alert('Failed to place order. Please try again.');
+      addToast({
+        type: 'error',
+        title: 'Order Failed',
+        message: 'Failed to place order. Please try again.'
+      });
     }
   };
 
@@ -403,7 +448,11 @@ export const MenuPage: React.FC = () => {
         
         setShowPayment(false);
         setTimeout(() => setShowFeedback(true), 2000);
-        alert('Payment confirmation submitted! Please wait for admin approval.');
+        addToast({
+          type: 'info',
+          title: 'Payment Submitted',
+          message: 'Payment confirmation submitted! Please wait for approval.'
+        });
         setIsPayingBill(false);
       } else {
         if (cartItems.length === 0) return;
@@ -459,16 +508,24 @@ export const MenuPage: React.FC = () => {
         clearCart();
         setShowPayment(false);
         
+        addToast({
+          type: 'info',
+          title: 'Payment Submitted',
+          message: 'Payment confirmation submitted! Your order is pending approval.'
+        });
+        
         // Only show feedback if not already submitted for this session
         if (!feedbackSubmitted) {
           setTimeout(() => setShowFeedback(true), 2000);
         }
-        
-        alert('Payment confirmation submitted! Your order is pending approval.');
       }
     } catch (error) {
       console.error('Error submitting payment:', error);
-      alert('Failed to submit payment confirmation. Please try again.');
+      addToast({
+        type: 'error',
+        title: 'Payment Failed',
+        message: 'Failed to submit payment confirmation. Please try again.'
+      });
     }
   };
 
@@ -484,14 +541,26 @@ export const MenuPage: React.FC = () => {
       // Send Telegram notification with proper error handling
       try {
         await telegramService.sendWaiterCall(resolvedTableNumber || '1', actualUserId);
-        alert(t('waiterCalled'));
+        addToast({
+          type: 'success',
+          title: t('waiter'),
+          message: t('waiterCalled')
+        });
       } catch (telegramError) {
         console.error('Telegram notification failed:', telegramError);
-        alert('Waiter call registered! (Telegram notification may have failed)');
+        addToast({
+          type: 'warning',
+          title: t('waiter'),
+          message: 'Waiter call registered! (Notification may have failed)'
+        });
       }
     } catch (error) {
       console.error('Error calling waiter:', error);
-      alert('Failed to call waiter. Please try again.');
+      addToast({
+        type: 'error',
+        title: 'Waiter Call Failed',
+        message: 'Failed to call waiter. Please try again.'
+      });
     }
   };
 
@@ -530,7 +599,11 @@ export const MenuPage: React.FC = () => {
         .catch(error => console.error('Failed to send feedback to Telegram:', error));
     }
     
-    alert(t('thankYou'));
+    addToast({
+      type: 'success',
+      title: t('thankYou'),
+      message: 'Your feedback helps us improve our service!'
+    });
   };
 
   if (userExists === false) {
@@ -736,6 +809,8 @@ export const MenuPage: React.FC = () => {
       {showSettings && (
         <SettingsModal
           settings={settings}
+          tableNumber={resolvedTableNumber || '1'}
+          userId={resolvedUserId || businessSlugToUserId}
           onClose={() => setShowSettings(false)}
           onUpdateSettings={updateSettings}
         />
@@ -775,7 +850,24 @@ export const MenuPage: React.FC = () => {
         onAboutClick={() => setShowAbout(true)}
         cartItemCount={getTotalItems()}
         language={settings.language}
+        notificationsEnabled={notificationsEnabled}
+        onNotificationToggle={async () => {
+          if (!notificationsEnabled) {
+            await requestPermission();
+          }
+        }}
       />
+
+      {/* Toast Notifications */}
+      {toasts.map((toast) => (
+        <NotificationToast
+          key={toast.id}
+          type={toast.type}
+          title={toast.title}
+          message={toast.message}
+          onClose={() => removeToast(toast.id)}
+        />
+      ))}
     </div>
   );
 };

@@ -235,6 +235,54 @@ class CustomerNotificationService {
     }
   }
 
+  async notifyOrderApproved(order: Order): Promise<void> {
+    await this.showNotification({
+      title: '🎉 Order Approved!',
+      body: `Your order for Table ${order.tableNumber} has been approved! The kitchen is now preparing your food.`,
+      icon: '/icon-192.png',
+      tag: `order-approved-${order.id}`,
+      data: { 
+        type: 'order_approved', 
+        orderId: order.id, 
+        tableNumber: order.tableNumber 
+      },
+      actions: [
+        { action: 'view', title: 'View Order' }
+      ]
+    });
+  }
+
+  async notifyOrderRejected(tableNumber: string): Promise<void> {
+    await this.showNotification({
+      title: '❌ Order Rejected',
+      body: `Your order for Table ${tableNumber} was not approved. Please contact staff for assistance.`,
+      icon: '/icon-192.png',
+      tag: `order-rejected-${tableNumber}`,
+      data: { 
+        type: 'order_rejected', 
+        tableNumber 
+      },
+      actions: [
+        { action: 'view_menu', title: 'View Menu' }
+      ]
+    });
+  }
+
+  async notifyKitchenUpdate(order: Order, departmentName: string): Promise<void> {
+    await this.showNotification({
+      title: `👨‍🍳 ${departmentName} Update`,
+      body: `Your order for Table ${order.tableNumber} is being prepared by the ${departmentName.toLowerCase()}.`,
+      icon: '/icon-192.png',
+      tag: `kitchen-${order.id}`,
+      data: { 
+        type: 'kitchen_update', 
+        orderId: order.id, 
+        tableNumber: order.tableNumber,
+        department: departmentName
+      }
+    });
+  }
+
   async notifySpecialOffer(offer: {
     title: string;
     description: string;

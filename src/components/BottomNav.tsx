@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, ChefHat, Receipt, ShoppingCart, Settings, FileText, Info } from 'lucide-react';
+import { Home, ChefHat, Receipt, ShoppingCart, Settings, FileText, Info, Bell, BellOff } from 'lucide-react';
 import { useTranslation } from '../utils/translations';
 
 interface BottomNavProps {
@@ -12,6 +12,8 @@ interface BottomNavProps {
   onAboutClick: () => void;
   cartItemCount: number;
   language: 'en' | 'am';
+  notificationsEnabled?: boolean;
+  onNotificationToggle?: () => void;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
@@ -24,12 +26,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   onAboutClick,
   cartItemCount,
   language,
+  notificationsEnabled = false,
+  onNotificationToggle,
 }) => {
   const t = useTranslation(language);
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 px-4 py-2 safe-area-pb">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-around">
         <button
           onClick={() => onTabChange('home')}
           className={`flex flex-col items-center py-2 px-3 rounded-lg transition-colors ${
@@ -78,6 +82,26 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           <FileText className="w-6 h-6 mb-1" />
           <span className="text-xs font-medium">{t('bill')}</span>
         </button>
+
+        {onNotificationToggle && (
+          <button
+            onClick={onNotificationToggle}
+            className={`flex flex-col items-center py-2 px-3 rounded-lg transition-colors ${
+              notificationsEnabled
+                ? 'text-green-400 bg-green-400/10'
+                : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10'
+            }`}
+          >
+            {notificationsEnabled ? (
+              <Bell className="w-6 h-6 mb-1" />
+            ) : (
+              <BellOff className="w-6 h-6 mb-1" />
+            )}
+            <span className="text-xs font-medium">
+              {language === 'en' ? 'Alerts' : 'ማሳወቂያ'}
+            </span>
+          </button>
+        )}
 
         <button
           onClick={onSettingsClick}

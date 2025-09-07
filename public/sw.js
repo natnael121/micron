@@ -22,9 +22,28 @@ self.addEventListener('notificationclick', (event) => {
   
   // Handle different notification actions
   if (action === 'view' || !action) {
-    // Open the admin panel
+    // Open appropriate page based on notification type
     event.waitUntil(
-      self.clients.openWindow('/admin')
+      self.clients.openWindow(
+        data?.type === 'order_update' || data?.type === 'payment_update' || data?.type === 'waiter_response'
+          ? `/menu/${data.userId || ''}/table/${data.tableNumber || '1'}`
+          : '/admin'
+      )
+    );
+  } else if (action === 'view_menu') {
+    // Open menu page
+    event.waitUntil(
+      self.clients.openWindow(`/menu/${data.userId || ''}/table/${data.tableNumber || '1'}`)
+    );
+  } else if (action === 'view_bill') {
+    // Open menu page and trigger bill modal
+    event.waitUntil(
+      self.clients.openWindow(`/menu/${data.userId || ''}/table/${data.tableNumber || '1'}?action=view_bill`)
+    );
+  } else if (action === 'retry_payment') {
+    // Open menu page and trigger payment modal
+    event.waitUntil(
+      self.clients.openWindow(`/menu/${data.userId || ''}/table/${data.tableNumber || '1'}?action=retry_payment`)
     );
   } else if (action === 'approve' && data?.type === 'order') {
     // Handle order approval
