@@ -170,7 +170,7 @@ const downloadAllQRCodes = async (format: 'png' | 'pdf') => {
         pdf.addImage(qrDataURL, 'PNG', qrX, qrY, qrSize, qrSize);
 
         // Welcome text
-        pdf.setTextColor(34, 197, 94);
+        pdf.setTextColor(255, 204, 0);
         pdf.setFontSize(12);
         pdf.setFont('helvetica', 'bold');
         pdf.text('Welcome!', qrX + qrSize / 2, qrY - 10, { align: 'center' });
