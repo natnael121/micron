@@ -127,7 +127,7 @@ const downloadAllQRCodes = async (format: 'png' | 'pdf') => {
 
         // Left branding area
         const leftWidth = (slotWidth - 20) * 0.45;
-        pdf.setFillColor(204, 204, 0)
+        pdf.setFillColor(255, 204, 0)
         pdf.roundedRect(x + 10, y + 15, leftWidth, slotHeight - 30, 5, 5, 'F');
 
         // Business logo
