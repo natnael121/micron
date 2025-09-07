@@ -23,52 +23,6 @@ import { telegramService } from '../../services/telegram';
 import { MenuStats, TableBill, PaymentConfirmation, PendingOrder, MenuItem, DayReport } from '../../types';
 import { format } from 'date-fns';
 
-// Generate a unique color for each table based on its number
-const generateTableColor = (tableNumber: number, totalTables: number) => {
-  // Use HSL color space for better color distribution
-  const hue = (tableNumber * 360) / Math.max(totalTables, 12); // Distribute across color wheel
-  const saturation = 65 + (tableNumber % 3) * 10; // Vary saturation slightly
-  const lightness = 45 + (tableNumber % 4) * 5; // Vary lightness slightly
-  
-  return {
-    hsl: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
-    hslLight: `hsl(${hue}, ${saturation}%, ${lightness + 35}%)`, // Lighter version for backgrounds
-    hslDark: `hsl(${hue}, ${saturation}%, ${lightness - 10}%)`, // Darker version for text
-  };
-};
-
-// Convert HSL to RGB for better browser compatibility
-const hslToRgb = (h: number, s: number, l: number) => {
-  h /= 360;
-  s /= 100;
-  l /= 100;
-  
-  const a = s * Math.min(l, 1 - l);
-  const f = (n: number) => {
-    const k = (n + h * 12) % 12;
-    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color);
-  };
-  
-  return [f(0), f(8), f(4)];
-};
-
-const generateTableColorRgb = (tableNumber: number, totalTables: number) => {
-  const hue = (tableNumber * 360) / Math.max(totalTables, 12);
-  const saturation = 65 + (tableNumber % 3) * 10;
-  const lightness = 45 + (tableNumber % 4) * 5;
-  
-  const [r, g, b] = hslToRgb(hue, saturation, lightness);
-  const [rLight, gLight, bLight] = hslToRgb(hue, saturation, lightness + 35);
-  const [rDark, gDark, bDark] = hslToRgb(hue, saturation, lightness - 10);
-  
-  return {
-    rgb: `rgb(${r}, ${g}, ${b})`,
-    rgbLight: `rgb(${rLight}, ${gLight}, ${bLight})`,
-    rgbDark: `rgb(${rDark}, ${gDark}, ${bDark})`,
-  };
-};
-
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { isEnabled: notificationsEnabled } = useNotifications();
@@ -368,12 +322,6 @@ export const Dashboard: React.FC = () => {
     return tableBills.find(b => parseInt(b.tableNumber) === tableNumber);
   };
 
-  const getSelectedTableColor = () => {
-    if (!selectedTable) return null;
-    const numberOfTables = user?.numberOfTables || 10;
-    return generateTableColorRgb(selectedTable, numberOfTables);
-  };
-
   if (loading) {
     return (
       <div className="p-6">
@@ -391,18 +339,9 @@ export const Dashboard: React.FC = () => {
   }
 
   const tableRows = getTableRows();
-  const selectedTableColor = getSelectedTableColor();
 
   return (
-    <div 
-      className="p-6 space-y-6 transition-all duration-500"
-      style={{
-        backgroundColor: selectedTableColor ? selectedTableColor.rgbLight : undefined,
-        backgroundImage: selectedTableColor 
-          ? `linear-gradient(135deg, ${selectedTableColor.rgbLight} 0%, rgba(255,255,255,0.9) 100%)`
-          : undefined
-      }}
-    >
+    <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
         {!notificationsEnabled && (
@@ -676,12 +615,7 @@ export const Dashboard: React.FC = () => {
         
         {/* Desktop layout (existing) */}
         <div className="hidden lg:block">
-        <div className="space-y-4" style={{ 
-          backgroundColor: selectedTableColor ? 'rgba(255,255,255,0.9)' : undefined,
-          borderRadius: selectedTableColor ? '12px' : undefined,
-          padding: selectedTableColor ? '16px' : undefined,
-          backdropFilter: selectedTableColor ? 'blur(10px)' : undefined
-        }}>
+        <div className="space-y-4">
           {tableRows.map((row, rowIndex) => (
             <div key={rowIndex} className="space-y-2">
               <h3 className="text-sm font-medium text-gray-700">
@@ -691,24 +625,15 @@ export const Dashboard: React.FC = () => {
                 {row.map(tableNumber => {
                   const status = getTableStatus(tableNumber);
                   const bill = getTableBill(tableNumber);
-                  const numberOfTables = user?.numberOfTables || 10;
-                  const tableColor = generateTableColorRgb(tableNumber, numberOfTables);
-                  const isSelected = selectedTable === tableNumber;
                   
                   return (
                     <div
                       key={tableNumber}
-                      className={`relative p-4 rounded-lg border-2 transition-all duration-300 transform hover:scale-105 ${
-                        isSelected ? 'ring-4 ring-white shadow-2xl scale-110' : 'shadow-md hover:shadow-lg'
+                      className={`relative p-4 rounded-lg border-2 transition-all duration-200 ${
+                        status === 'occupied'
+                          ? 'border-red-300 bg-red-50 hover:bg-red-100'
+                          : 'border-green-300 bg-green-50 hover:bg-green-100'
                       }`}
-                      style={{
-                        backgroundColor: status === 'occupied' 
-                          ? `${tableColor.rgbLight}` 
-                          : `${tableColor.rgbLight}40`, // 40 for transparency
-                        borderColor: tableColor.rgb,
-                        borderWidth: isSelected ? '3px' : '2px',
-                        color: tableColor.rgbDark,
-                      }}
                     >
                       <button
                         onClick={() => setSelectedTable(selectedTable === tableNumber ? null : tableNumber)}
@@ -716,12 +641,12 @@ export const Dashboard: React.FC = () => {
                       >
                         <div className="text-lg font-bold text-gray-900">{tableNumber}</div>
                         <div className={`text-xs font-medium ${
-                          status === 'occupied' ? 'text-gray-800' : 'text-gray-700'
+                          status === 'occupied' ? 'text-red-600' : 'text-green-600'
                         }`}>
                           {status === 'occupied' ? 'Occupied' : 'Available'}
                         </div>
                         {bill && (
-                          <div className="text-xs text-gray-700 mt-1 font-semibold">
+                          <div className="text-xs text-gray-500 mt-1">
                             ${bill.total.toFixed(2)}
                           </div>
                         )}
@@ -730,10 +655,7 @@ export const Dashboard: React.FC = () => {
                       {/* Add Order Button */}
                       <button
                         onClick={() => handleAddOrderToTable(tableNumber)}
-                        className="absolute top-1 right-1 text-white rounded-full p-1 hover:scale-110 transition-all duration-200 shadow-lg"
-                        style={{
-                          backgroundColor: tableColor.rgb,
-                        }}
+                        className="absolute top-1 right-1 bg-blue-600 text-white rounded-full p-1 hover:bg-blue-700 transition-colors"
                         title="Add Order"
                       >
                         <UserPlus className="w-3 h-3" />
@@ -742,10 +664,7 @@ export const Dashboard: React.FC = () => {
                       {bill && status === 'occupied' && (
                         <button
                           onClick={() => handlePayTableBill(bill)}
-                          className="absolute top-1 left-1 text-white rounded-full p-1 hover:scale-110 transition-all duration-200 shadow-lg"
-                          style={{
-                            backgroundColor: tableColor.rgbDark,
-                          }}
+                          className="absolute top-1 left-1 bg-green-600 text-white rounded-full p-1 hover:bg-green-700 transition-colors"
                           title="Pay Bill"
                         >
                           <CreditCard className="w-3 h-3" />
@@ -762,16 +681,7 @@ export const Dashboard: React.FC = () => {
 
         {/* Table Details */}
         {selectedTable && (
-          <div 
-            className="mt-6 p-6 rounded-xl shadow-lg border-2 transition-all duration-300"
-            style={{
-              backgroundColor: selectedTableColor ? 'rgba(255,255,255,0.95)' : undefined,
-              borderColor: selectedTableColor?.rgb,
-              boxShadow: selectedTableColor 
-                ? `0 20px 25px -5px ${selectedTableColor.rgbLight}40, 0 10px 10px -5px ${selectedTableColor.rgbLight}20`
-                : undefined
-            }}
-          >
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <h3 className="font-semibold text-gray-900 mb-3">Table {selectedTable} Details</h3>
             {(() => {
               const bill = getTableBill(selectedTable);
@@ -806,10 +716,7 @@ export const Dashboard: React.FC = () => {
                   <div className="pt-2 border-t">
                     <button
                       onClick={() => handlePayTableBill(bill)}
-                      className="w-full text-white py-3 px-4 rounded-lg hover:opacity-90 transition-all duration-200 flex items-center justify-center space-x-2 font-semibold shadow-lg"
-                      style={{
-                        backgroundColor: selectedTableColor?.rgb,
-                      }}
+                      className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
                     >
                       <CreditCard className="w-4 h-4" />
                       <span>Mark as Paid</span>
