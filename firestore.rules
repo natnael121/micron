@@ -1,0 +1,198 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Define the Super Admin UID
+    // IMPORTANT: Replace 'ACTUAL_SUPER_ADMIN_UID' with the real UID of your super admin account.
+    // You can find this in Firebase Authentication.
+    function getSuperAdminUid() {
+      return "OMmHouAdfuVnLa1RPak0MgN7KdX2";
+    }
+
+    // Helper function to check if the requesting user is the Super Admin
+    function isSuperAdmin() {
+      return request.auth != null && request.auth.uid == getSuperAdminUid();
+    }
+
+    // Helper function to check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if the requesting user is the owner of the document
+    // 'data' refers to the document's data (e.g., request.resource.data for writes, resource.data for reads)
+    function isOwner(data) {
+      return isAuthenticated() && request.auth.uid == data.userId;
+    }
+
+    // 1. Users Collection (Restaurant Owners & Super Admin)
+    // This collection stores the profiles of restaurant owners.
+    match /users/{userId} {
+      // Owners can read and update their own user profile.
+      allow read, update: if isOwner(resource.data);
+      // New users can create their own profile upon successful registration.
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      // Super Admin has full read, update, and delete access to any user profile.
+      allow read, update, delete: if isSuperAdmin();
+    }
+
+    // 2. Restaurant-Specific Data Collections
+    // These collections store data specific to a restaurant, identified by a 'userId' field.
+
+    // Menu Items, Categories, Menu Schedules:
+    // Restaurant owners can perform all CRUD operations.
+    // Any user (including guests) can read these if the 'userId' in the document
+    // matches the 'userId' provided in the query (e.g., from the URL path for public menus).
+    match /menuItems/{menuItemId} {
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
+      allow read: if resource.data.userId == request.query.userId || isOwner(resource.data) || isSuperAdmin();
+    }
+    match /categories/{categoryId} {
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
+      allow read: if resource.data.userId == request.query.userId || isOwner(resource.data) || isSuperAdmin();
+    }
+    match /menuSchedules/{scheduleId} {
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
+      allow read: if resource.data.userId == request.query.userId || isOwner(resource.data) || isSuperAdmin();
+    }
+
+    // Departments, Waiter Assignments, Day Reports, Delivery Integrations, Bills:
+    // These collections are for internal restaurant management.
+    // Only the restaurant owner and Super Admin can perform CRUD operations. No public read access.
+    match /departments/{departmentId} {
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
+      allow read: if isOwner(resource.data) || isSuperAdmin();
+    }
+    match /waiterAssignments/{assignmentId} {
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
+      allow read: if isOwner(resource.data) || isSuperAdmin();
+    }
+    match /dayReports/{reportId} {
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
+      allow read: if isOwner(resource.data) || isSuperAdmin();
+    }
+    match /deliveryIntegrations/{integrationId} {
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
+      allow read: if isOwner(resource.data) || isSuperAdmin();
+    }
+    match /bills/{billId} {
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
+      allow read: if isOwner(resource.data) || isSuperAdmin();
+    }
+
+    // Orders, Pending Orders, Payment Confirmations, Waiter Calls, Table Bills:
+    // These collections involve both restaurant owner management and customer interactions.
+    // Customers can create new documents (e.g., place an order, send payment confirmation, call waiter).
+    // Restaurant owners and Super Admin can manage (read, update, delete) all documents for their restaurant.
+    // Authenticated customers can read documents specific to their table, provided the 'userId' and 'tableNumber'
+    // in the document match the query parameters.
+    match /orders/{orderId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
+      allow read: if isOwner(resource.data) || isSuperAdmin() ||
+                  (isAuthenticated() && resource.data.userId == request.query.userId && resource.data.tableNumber == request.query.tableNumber);
+    }
+    match /pendingOrders/{pendingOrderId} {
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
+      allow read: if isOwner(resource.data) || isSuperAdmin(); // Only owners read pending orders
+    }
+    match /paymentConfirmations/{confirmationId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
+      allow read: if isOwner(resource.data) || isSuperAdmin() ||
+                  (isAuthenticated() && resource.data.userId == request.query.userId && resource.data.tableNumber == request.query.tableNumber);
+    }
+    match /waiterCalls/{callId} {
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
+      allow read: if isOwner(resource.data) || isSuperAdmin() ||
+                  (isAuthenticated() && resource.data.userId == request.query.userId && resource.data.tableNumber == request.query.tableNumber);
+    }
+    match /tableBills/{billId} {
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
+      allow read: if isOwner(resource.data) || isSuperAdmin() ||
+                  (isAuthenticated() && resource.data.userId == request.query.userId && resource.data.tableNumber == request.query.tableNumber);
+    }
+
+    // 3. Centralized Notification System Collections
+    
+    // Notification Templates:
+    // Restaurant owners can manage their own notification templates.
+    // Super Admin has full access to all templates.
+    match /notificationTemplates/{templateId} {
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
+      allow read: if isOwner(resource.data) || isSuperAdmin();
+    }
+
+    // Scheduled Notifications:
+    // Restaurant owners can manage their own scheduled notifications.
+    // Super Admin has full access to all scheduled notifications.
+    match /scheduledNotifications/{notificationId} {
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
+      allow read: if isOwner(resource.data) || isSuperAdmin();
+    }
+
+    // Customer Notification Preferences:
+    // Customers can create and update their own preferences for any restaurant.
+    // Restaurant owners can read and update preferences for their restaurant.
+    // Super Admin has full access.
+    match /customerNotificationPreferences/{preferencesId} {
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && 
+                    (request.auth.uid == resource.data.userId || 
+                     resource.data.userId == request.query.userId);
+      allow read: if isOwner(resource.data) || isSuperAdmin() ||
+                  (isAuthenticated() && resource.data.userId == request.query.userId && 
+                   resource.data.tableNumber == request.query.tableNumber);
+    }
+
+    // Notification Delivery Records:
+    // Restaurant owners and Super Admin can read delivery records.
+    // Backend systems handle creation and updates.
+    match /notificationDeliveries/{deliveryId} {
+      allow read: if isOwner(resource.data) || isSuperAdmin();
+      // Create, update, delete handled by backend systems only
+    }
+
+    // Notification Settings:
+    // Restaurant owners can manage their own notification settings.
+    // Super Admin has full access to all settings.
+    match /notificationSettings/{settingsId} {
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
+      allow read: if isOwner(resource.data) || isSuperAdmin();
+    }
+
+    // Live Notifications:
+    // Customers can read live notifications for their table (public access for real-time updates).
+    // Restaurant owners and Super Admin can read all live notifications.
+    // Backend systems handle creation and cleanup.
+    match /liveNotifications/{notificationId} {
+      allow read: if isOwner(resource.data) || isSuperAdmin() ||
+                  (resource.data.userId == request.query.userId && 
+                   resource.data.tableNumber == request.query.tableNumber);
+      // Create, update, delete handled by backend systems only
+    }
+
+    // 4. Webhook/Log Collections
+    // These collections are primarily written by server-side functions (Firebase Admin SDK),
+    // which bypasses these rules. Client-side write access is generally not needed.
+    // Restaurant owners and Super Admin can read these for debugging/monitoring.
+    match /deliveryWebhookEvents/{eventId} {
+      allow read: if isOwner(resource.data) || isSuperAdmin();
+    }
+    match /bulkPriceUpdates/{updateId} {
+      allow read: if isOwner(resource.data) || isSuperAdmin();
+    }
+    match /orderStatusUpdates/{updateId} {
+      allow read: if isOwner(resource.data) || isSuperAdmin();
+    }
+    match /itemAvailabilityUpdates/{updateId} {
+      allow read: if isOwner(resource.data) || isSuperAdmin();
+    }
+
+    // Deny all other unmatched requests by default for security
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
