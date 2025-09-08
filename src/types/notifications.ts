@@ -76,3 +76,17 @@ export interface NotificationSettings {
   created_at: string;
   updated_at: string;
 }
+
+export interface LiveNotification {
+  id: string;
+  userId: string;
+  tableNumber: string;
+  title: string;
+  message: string;
+  imageUrl?: string;
+  type: 'info' | 'success' | 'warning' | 'error' | 'promotion';
+  timestamp: string;
+  ttl: string;
+  actionUrl?: string;
+  actionText?: string;
+}

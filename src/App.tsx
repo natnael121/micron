@@ -16,6 +16,7 @@ import { DeliveryIntegration } from './components/admin/DeliveryIntegration';
 import { SupplierManagement } from './components/admin/SupplierManagement';
 import { SuperAdminLogin } from './components/admin/SuperAdminLogin';
 import { SuperAdminDashboard } from './components/admin/SuperAdminDashboard';
+import { NotificationSettings } from './components/admin/NotificationSettings';
 import { MenuPage } from './pages/MenuPage';
 
 function App() {

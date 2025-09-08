@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../hooks/useNotifications';
+import { useNotificationScheduler } from '../../hooks/useNotificationScheduler';
 import { firebaseService } from '../../services/firebase';
 import { telegramService } from '../../services/telegram';
 import { MenuStats, TableBill, PaymentConfirmation, PendingOrder, MenuItem, DayReport } from '../../types';
@@ -26,6 +27,7 @@ import { format } from 'date-fns';
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { isEnabled: notificationsEnabled } = useNotifications();
+  const { isProcessing: schedulerProcessing } = useNotificationScheduler(user?.id || '');
   const [stats, setStats] = useState<MenuStats | null>(null);
   const [tableBills, setTableBills] = useState<TableBill[]>([]);
   const [paymentConfirmations, setPaymentConfirmations] = useState<PaymentConfirmation[]>([]);
@@ -348,6 +350,13 @@ export const Dashboard: React.FC = () => {
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
             <p className="text-yellow-800 text-sm">
               💡 Enable web notifications in Settings to get instant alerts for new orders and payments!
+            </p>
+          </div>
+        )}
+        {schedulerProcessing && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <p className="text-blue-800 text-sm">
+              🔄 Processing scheduled notifications...
             </p>
           </div>
         )}

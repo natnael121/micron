@@ -24,6 +24,7 @@ import { useCustomerNotifications } from '../hooks/useCustomerNotifications';
 import { TelegramDeepLinkService } from '../utils/telegramDeepLink';
 import { TelegramUser, CafeTableSession, Category } from '../types';
 import { NotificationToast } from '../components/NotificationToast';
+import { CustomerNotificationManager } from '../components/CustomerNotificationManager';
 
 export const MenuPage: React.FC = () => {
   const { userId, tableNumber } = useParams<{ userId: string; tableNumber: string }>();
@@ -872,6 +873,16 @@ export const MenuPage: React.FC = () => {
           onClose={() => removeToast(toast.id)}
         />
       ))}
+
+      {/* Customer Notification Manager */}
+      {session && (
+        <CustomerNotificationManager
+          userId={resolvedUserId || businessSlugToUserId || ''}
+          tableNumber={resolvedTableNumber || '1'}
+          sessionId={session.sessionId}
+          language={settings.language}
+        />
+      )}
     </div>
   );
 };
