@@ -95,15 +95,20 @@ export const MenuPage: React.FC = () => {
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
+
   useEffect(() => {
     initializeSession();
     checkFeedbackStatus();
-  }, [location]);
+  }, [location.pathname, location.search]);
 
   const checkFeedbackStatus = () => {
     // Check if feedback was already submitted for this session
     const sessionFeedback = localStorage.getItem(`feedback_${session?.sessionId || 'guest'}`);
     if (sessionFeedback) {
+      setFeedbackSubmitted(true);
+    }
+  };
+
   // Handle URL actions from notifications
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -123,11 +128,8 @@ export const MenuPage: React.FC = () => {
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
     }
-  }, []);
+  }, [location.search]);
 
-      setFeedbackSubmitted(true);
-    }
-  };
 
   useEffect(() => {
     if (resolvedUserId || businessSlugToUserId) {
