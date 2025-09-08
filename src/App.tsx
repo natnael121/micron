@@ -14,9 +14,9 @@ import { Settings } from './components/admin/Settings';
 import { WaiterManagement } from './components/admin/WaiterManagement';
 import { DeliveryIntegration } from './components/admin/DeliveryIntegration';
 import { SupplierManagement } from './components/admin/SupplierManagement';
+import { NotificationSettings } from './components/admin/NotificationSettings';
 import { SuperAdminLogin } from './components/admin/SuperAdminLogin';
 import { SuperAdminDashboard } from './components/admin/SuperAdminDashboard';
-import { NotificationSettings } from './components/admin/NotificationSettings';
 import { MenuPage } from './pages/MenuPage';
 
 function App() {
@@ -62,6 +62,7 @@ function App() {
           <Route path="orders" element={<OrderManagement />} />
           <Route path="bills" element={<BillManagement />} />
           <Route path="delivery" element={<DeliveryIntegration />} />
+          <Route path="notifications" element={<NotificationSettings />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
         </Route>
