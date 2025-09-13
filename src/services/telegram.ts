@@ -1,12 +1,12 @@
 import axios from 'axios';
 import { Order, PendingOrder, OrderItem } from '../types';
 
-const BOT_TOKEN = '1941939105:AAHJ9XhL9uRyzQ9uhi3F4rKAQIbQ9D7YRs8'; // Replace with your actual bot token
+const BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
 // Default chat IDs (fallback)
 const DEFAULT_ADMIN_CHAT_ID = -1002701066037;
 const DEFAULT_KITCHEN_CHAT_ID = -1002660493020;
 const DEFAULT_BAR_CHAT_ID = -1002859150516;
-const TELEGRAM_API_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
+const TELEGRAM_API_URL = BOT_TOKEN ? `https://api.telegram.org/bot${BOT_TOKEN}` : '';
 const WEBHOOK_URL = 'https://the-last-bot.vercel.app/api/telegram-webhook';
 
 class TelegramService {
@@ -54,16 +54,40 @@ class TelegramService {
 
   async getWebhookInfo(): Promise<any> {
     try {
+      if (!BOT_TOKEN) {
+        throw new Error('Telegram bot token is not configured. Please add VITE_TELEGRAM_BOT_TOKEN to your .env file.');
+      }
+      
+      if (!TELEGRAM_API_URL) {
+        throw new Error('Telegram API URL could not be constructed. Check your bot token configuration.');
+      }
+      
       const response = await axios.get(`${TELEGRAM_API_URL}/getWebhookInfo`);
       return response.data;
     } catch (error) {
       console.error('Error getting webhook info:', error);
-      return null;
+      
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 400) {
+          throw new Error('Invalid bot token. Please check your VITE_TELEGRAM_BOT_TOKEN in the .env file.');
+        } else if (error.response?.status === 401) {
+          throw new Error('Unauthorized. Please verify your bot token is correct.');
+        } else if (error.response?.status === 404) {
+          throw new Error('Bot not found. Please check your bot token.');
+        }
+      }
+      
+      throw error;
     }
   }
 
   async sendMessage(message: string, chatId: number): Promise<boolean> {
     try {
+      if (!BOT_TOKEN || !TELEGRAM_API_URL) {
+        console.warn('Telegram bot token not configured, skipping message send');
+        return false;
+      }
+      
       const response = await axios.post(`${TELEGRAM_API_URL}/sendMessage`, {
         chat_id: chatId,
         text: message,
@@ -78,12 +102,22 @@ class TelegramService {
   }
 
   async sendTestMessage(chatId: string): Promise<boolean> {
+    if (!BOT_TOKEN) {
+      console.warn('Telegram bot token not configured');
+      return false;
+    }
+    
     const message = `🤖 <b>Test Message</b>\n\n✅ Your Telegram integration is working correctly!\n🕐 ${new Date().toLocaleString()}`;
     return this.sendMessage(message, parseInt(chatId));
   }
 
   async sendPhoto(photo: File, caption: string, chatId: number): Promise<boolean> {
     try {
+      if (!BOT_TOKEN || !TELEGRAM_API_URL) {
+        console.warn('Telegram bot token not configured, skipping photo send');
+        return false;
+      }
+      
       const formData = new FormData();
       formData.append('chat_id', chatId.toString());
       formData.append('photo', photo);
@@ -518,6 +552,11 @@ ${feedback.rating >= 4 ? '🎉 <b>Great feedback! Keep it up!</b>' :
 
   private async sendMessageWithButtons(chatId: number | string, message: string, buttons: any[]): Promise<boolean> {
     try {
+      if (!BOT_TOKEN || !TELEGRAM_API_URL) {
+        console.warn('Telegram bot token not configured, skipping message with buttons');
+        return false;
+      }
+      
       const response = await axios.post(`${TELEGRAM_API_URL}/sendMessage`, {
         chat_id: typeof chatId === 'string' ? parseInt(chatId) : chatId,
         text: message,
