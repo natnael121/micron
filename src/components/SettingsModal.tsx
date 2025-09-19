@@ -95,17 +95,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 ) : (
                   <BellOff className="w-5 h-5 mr-2 text-gray-400" />
                 )}
-                {language === 'en' ? 'Notifications' : 'ማሳወቂያዎች'}
+                {settings.language === 'en' ? 'Notifications' : 'ማሳወቂያዎች'}
               </label>
               
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="text-sm font-medium text-gray-900">
-                      {language === 'en' ? 'Order Updates' : 'የትዕዛዝ ዝማኔዎች'}
+                      {settings.language === 'en' ? 'Order Updates' : 'የትዕዛዝ ዝማኔዎች'}
                     </p>
                     <p className="text-xs text-gray-600">
-                      {language === 'en' 
+                      {settings.language === 'en' 
                         ? 'Get notified about order status changes'
                         : 'ስለ ትዕዛዝ ሁኔታ ለውጦች ማሳወቂያ ይቀበሉ'
                       }
@@ -123,7 +123,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 text-sm"
                     >
                       <Bell className="w-4 h-4" />
-                      <span>{language === 'en' ? 'Enable' : 'አንቃ'}</span>
+                      <span>{settings.language === 'en' ? 'Enable' : 'አንቃ'}</span>
                     </button>
                   ) : (
                     <button
@@ -131,7 +131,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2 text-sm"
                     >
                       <TestTube className="w-4 h-4" />
-                      <span>{language === 'en' ? 'Test' : 'ሞክር'}</span>
+                      <span>{settings.language === 'en' ? 'Test' : 'ሞክር'}</span>
                     </button>
                   )}
                 </div>
@@ -139,7 +139,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {notificationsEnabled && (
                   <div className="bg-green-50 p-3 rounded-lg">
                     <p className="text-xs text-green-800">
-                      {language === 'en' 
+                      {settings.language === 'en' 
                         ? '✅ You\'ll receive notifications about your orders, payments, and waiter responses.'
                         : '✅ ስለ ትዕዛዝዎ፣ ክፍያዎች እና የአስተናጋጅ ምላሾች ማሳወቂያ ይቀበላሉ።'
                       }
