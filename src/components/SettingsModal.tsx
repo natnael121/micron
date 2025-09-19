@@ -106,7 +106,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </p>
                     <p className="text-xs text-gray-600">
                       {language === 'en' 
-            
                         ? 'Get notified about order status changes'
                         : 'ስለ ትዕዛዝ ሁኔታ ለውጦች ማሳወቂያ ይቀበሉ'
                       }
