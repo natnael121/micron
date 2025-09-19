@@ -65,7 +65,7 @@ class TelegramService {
   async sendMessage(message: string, chatId: number): Promise<boolean> {
     try {
       const response = await axios.post(`${TELEGRAM_API_URL}/sendMessage`, {
-        chat_id: chatId,
+        chat_id: chatId.toString(),
         text: message,
         parse_mode: 'HTML',
       });
@@ -519,7 +519,7 @@ ${feedback.rating >= 4 ? '🎉 <b>Great feedback! Keep it up!</b>' :
   private async sendMessageWithButtons(chatId: number | string, message: string, buttons: any[]): Promise<boolean> {
     try {
       const response = await axios.post(`${TELEGRAM_API_URL}/sendMessage`, {
-        chat_id: typeof chatId === 'string' ? parseInt(chatId) : chatId,
+        chat_id: chatId.toString(),
         text: message,
         parse_mode: 'HTML',
         reply_markup: {
