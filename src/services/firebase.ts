@@ -379,8 +379,11 @@ class FirebaseService {
   async updateWaiterAssignment(id: string, updates: Partial<WaiterAssignment>): Promise<void> {
     try {
       const docRef = doc(db, 'waiterAssignments', id);
+      const cleanUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([, v]) => v !== undefined)
+      );
       await updateDoc(docRef, {
-        ...updates,
+        ...cleanUpdates,
         updated_at: new Date().toISOString(),
       });
     } catch (error) {
@@ -1314,16 +1317,18 @@ class FirebaseService {
     telegramChatId?: string;
   }): Promise<void> {
     try {
-      const waiterUser: Omit<User, 'id'> = {
+      const waiterUser: Record<string, unknown> = {
         email: data.email,
         name: data.name,
         role: 'waiter',
         restaurantId: data.restaurantId,
         assignedTables: data.assignedTables,
-        telegramChatId: data.telegramChatId,
         status: 'active',
         created_at: new Date().toISOString(),
       };
+      if (data.telegramChatId) {
+        waiterUser.telegramChatId = data.telegramChatId;
+      }
 
       await setDoc(doc(db, 'users', waiterId), waiterUser);
     } catch (error) {
@@ -1335,8 +1340,11 @@ class FirebaseService {
   async updateWaiterProfile(waiterId: string, updates: Partial<User>): Promise<void> {
     try {
       const docRef = doc(db, 'users', waiterId);
+      const cleanUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([, v]) => v !== undefined)
+      );
       await updateDoc(docRef, {
-        ...updates,
+        ...cleanUpdates,
         updated_at: new Date().toISOString(),
       });
     } catch (error) {

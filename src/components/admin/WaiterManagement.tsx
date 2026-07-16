@@ -434,11 +434,10 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
       }
 
       // 2. Create or Update waiter assignment
-      const waiterAssignmentData = {
+      const waiterAssignmentData: Record<string, unknown> = {
         waiterName: waiterName.trim(),
         startTable,
         endTable,
-        telegramChatId: telegramChatId.trim() || undefined,
         isActive,
         shiftStartTime,
         shiftEndTime,
@@ -446,6 +445,10 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
         userId,
         created_at: waiter?.created_at || new Date().toISOString(),
       };
+      const trimmedChatId = telegramChatId.trim();
+      if (trimmedChatId) {
+        waiterAssignmentData.telegramChatId = trimmedChatId;
+      }
 
       if (waiter) {
         await firebaseService.updateWaiterAssignment(waiterId, waiterAssignmentData);
