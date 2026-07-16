@@ -25,11 +25,20 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == data.userId;
     }
 
+    // Helper function to check if requesting user is an active waiter of the restaurant
+    function isWaiter(restaurantId) {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'waiter' &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.restaurantId == restaurantId;
+    }
+
     // 1. Users Collection (Restaurant Owners & Super Admin)
     // This collection stores the profiles of restaurant owners.
     match /users/{userId} {
-      // Owners can read and update their own user profile.
-      allow read, update: if isOwner(resource.data);
+      // Owners can read and update their own user profile. Waiters can read their owner's profile.
+      allow read: if isOwner(resource.data) || isWaiter(userId);
+      allow update: if isOwner(resource.data);
       // New users can create their own profile upon successful registration.
       allow create: if isAuthenticated() && request.auth.uid == userId;
       // Super Admin has full read, update, and delete access to any user profile.
@@ -45,15 +54,15 @@ service cloud.firestore {
     // matches the 'userId' provided in the query (e.g., from the URL path for public menus).
     match /menuItems/{menuItemId} {
       allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
-      allow read: if resource.data.userId == request.query.userId || isOwner(resource.data) || isSuperAdmin();
+      allow read: if resource.data.userId == request.query.userId || isOwner(resource.data) || isSuperAdmin() || isWaiter(resource.data.userId);
     }
     match /categories/{categoryId} {
       allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
-      allow read: if resource.data.userId == request.query.userId || isOwner(resource.data) || isSuperAdmin();
+      allow read: if resource.data.userId == request.query.userId || isOwner(resource.data) || isSuperAdmin() || isWaiter(resource.data.userId);
     }
     match /menuSchedules/{scheduleId} {
       allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
-      allow read: if resource.data.userId == request.query.userId || isOwner(resource.data) || isSuperAdmin();
+      allow read: if resource.data.userId == request.query.userId || isOwner(resource.data) || isSuperAdmin() || isWaiter(resource.data.userId);
     }
 
     // Departments, Waiter Assignments, Day Reports, Delivery Integrations, Bills:
@@ -61,11 +70,11 @@ service cloud.firestore {
     // Only the restaurant owner and Super Admin can perform CRUD operations. No public read access.
     match /departments/{departmentId} {
       allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
-      allow read: if isOwner(resource.data) || isSuperAdmin();
+      allow read: if isOwner(resource.data) || isSuperAdmin() || isWaiter(resource.data.userId);
     }
     match /waiterAssignments/{assignmentId} {
       allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
-      allow read: if isOwner(resource.data) || isSuperAdmin();
+      allow read: if isOwner(resource.data) || isSuperAdmin() || isWaiter(resource.data.userId);
     }
     match /dayReports/{reportId} {
       allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
@@ -87,9 +96,9 @@ service cloud.firestore {
     // Authenticated customers can read documents specific to their table, provided the 'userId' and 'tableNumber'
     // in the document match the query parameters.
     match /orders/{orderId} {
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
-      allow read: if isOwner(resource.data) || isSuperAdmin() ||
+      allow create: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isWaiter(request.resource.data.userId));
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin() || isWaiter(request.resource.data.userId);
+      allow read: if isOwner(resource.data) || isSuperAdmin() || isWaiter(resource.data.userId) ||
                   (isAuthenticated() && resource.data.userId == request.query.userId && resource.data.tableNumber == request.query.tableNumber);
     }
     match /pendingOrders/{pendingOrderId} {
@@ -109,8 +118,8 @@ service cloud.firestore {
                   (isAuthenticated() && resource.data.userId == request.query.userId && resource.data.tableNumber == request.query.tableNumber);
     }
     match /tableBills/{billId} {
-      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin();
-      allow read: if isOwner(resource.data) || isSuperAdmin() ||
+      allow write: if isOwner(request.resource.data) || isOwner(resource.data) || isSuperAdmin() || isWaiter(request.resource.data.userId);
+      allow read: if isOwner(resource.data) || isSuperAdmin() || isWaiter(resource.data.userId) ||
                   (isAuthenticated() && resource.data.userId == request.query.userId && resource.data.tableNumber == request.query.tableNumber);
     }
 

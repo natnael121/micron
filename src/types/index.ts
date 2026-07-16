@@ -10,6 +10,9 @@ export interface User {
   status?: 'active' | 'inactive' | 'suspended';
   created_at: string;
   subscription?: 'free' | 'premium';
+  role?: 'owner' | 'waiter'; // Account role — defaults to 'owner' for backward compat
+  restaurantId?: string; // For waiters: links to the restaurant owner's userId
+  assignedTables?: number[]; // For waiters: quick reference of assigned table numbers
   numberOfTables?: number;
   telegramChatId?: string; // Backward compatibility
   telegramSettings?: {
@@ -184,6 +187,10 @@ export interface Order {
     telegramId?: string;
     telegramUsername?: string;
     telegramPhoto?: string;
+  };
+  waiterInfo?: {
+    waiterId: string;
+    waiterName: string;
   };
   notes?: string;
   deliveryInfo?: {
