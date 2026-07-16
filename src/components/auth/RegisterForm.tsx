@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Mail, Lock, User, Building, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -14,7 +14,6 @@ export const RegisterForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
   
   const { register } = useAuth();
 
@@ -47,9 +46,7 @@ export const RegisterForm: React.FC = () => {
       businessName: formData.businessName,
     });
     
-    if (result.success) {
-      navigate('/');
-    } else {
+    if (!result.success) {
       setError(result.error || 'Registration failed');
     }
     

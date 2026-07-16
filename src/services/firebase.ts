@@ -1074,7 +1074,73 @@ class FirebaseService {
     });
   }
 
+  // =======================
+  // Customer-specific Real-time Listeners
+  // =======================
 
+  listenToTableOrders(userId: string, tableNumber: string, callback: (orders: Order[]) => void): () => void {
+    const q = query(
+      collection(db, 'orders'),
+      where('userId', '==', userId),
+      where('tableNumber', '==', tableNumber),
+      orderBy('timestamp', 'desc'),
+      limit(10)
+    );
+    
+    return onSnapshot(q, (snapshot) => {
+      const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+      callback(orders);
+    });
+  }
+
+  listenToTablePayments(userId: string, tableNumber: string, callback: (confirmations: PaymentConfirmation[]) => void): () => void {
+    const q = query(
+      collection(db, 'paymentConfirmations'),
+      where('userId', '==', userId),
+      where('tableNumber', '==', tableNumber),
+      orderBy('timestamp', 'desc'),
+      limit(5)
+    );
+    
+    return onSnapshot(q, (snapshot) => {
+      const confirmations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PaymentConfirmation));
+      callback(confirmations);
+    });
+  }
+
+  listenToTableWaiterCalls(userId: string, tableNumber: string, callback: (calls: WaiterCall[]) => void): () => void {
+    const q = query(
+      collection(db, 'waiterCalls'),
+      where('userId', '==', userId),
+      where('tableNumber', '==', tableNumber),
+      orderBy('timestamp', 'desc'),
+      limit(5)
+    );
+    
+    return onSnapshot(q, (snapshot) => {
+      const calls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WaiterCall));
+      callback(calls);
+    });
+  }
+
+  listenToTableBill(userId: string, tableNumber: string, callback: (bill: TableBill | null) => void): () => void {
+    const q = query(
+      collection(db, 'tableBills'),
+      where('userId', '==', userId),
+      where('tableNumber', '==', tableNumber),
+      where('status', '==', 'active'),
+      limit(1)
+    );
+    
+    return onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        callback({ id: doc.id, ...doc.data() } as TableBill);
+      } else {
+        callback(null);
+      }
+    });
+  }
 
   async getWaiterCalls(userId: string): Promise<WaiterCall[]> {
     try {
@@ -1286,154 +1352,6 @@ class FirebaseService {
       throw error;
     }
   }
-
-  // =======================
-  // Waiter Account Management
-  // =======================
-
-  async getWaitersByRestaurant(ownerUserId: string): Promise<User[]> {
-    try {
-      const q = query(
-        collection(db, 'users'),
-        where('role', '==', 'waiter'),
-        where('restaurantId', '==', ownerUserId)
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-    } catch (error) {
-      console.error('Error fetching waiters:', error);
-      throw error;
-    }
-  }
-
-  async createWaiterProfile(waiterId: string, data: {
-    email: string;
-    name: string;
-    restaurantId: string;
-    assignedTables: number[];
-    telegramChatId?: string;
-  }): Promise<void> {
-    try {
-      const waiterUser: Omit<User, 'id'> = {
-        email: data.email,
-        name: data.name,
-        role: 'waiter',
-        restaurantId: data.restaurantId,
-        assignedTables: data.assignedTables,
-        telegramChatId: data.telegramChatId,
-        status: 'active',
-        created_at: new Date().toISOString(),
-      };
-
-      await setDoc(doc(db, 'users', waiterId), waiterUser);
-    } catch (error) {
-      console.error('Error creating waiter profile:', error);
-      throw error;
-    }
-  }
-
-  async updateWaiterProfile(waiterId: string, updates: Partial<User>): Promise<void> {
-    try {
-      const docRef = doc(db, 'users', waiterId);
-      await updateDoc(docRef, {
-        ...updates,
-        updated_at: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error('Error updating waiter profile:', error);
-      throw error;
-    }
-  }
-
-  async deleteWaiterProfile(waiterId: string): Promise<void> {
-    try {
-      await deleteDoc(doc(db, 'users', waiterId));
-    } catch (error) {
-      console.error('Error deleting waiter profile:', error);
-      throw error;
-    }
-  }
-
-  // =======================
-  // Waiter Order Placement (Auto-Approved)
-  // =======================
-
-  async createWaiterOrder(
-    restaurantId: string,
-    tableNumber: string,
-    items: import('../types').OrderItem[],
-    waiterInfo: { waiterId: string; waiterName: string },
-    cafeId?: string
-  ): Promise<string> {
-    try {
-      const totalAmount = items.reduce((sum, item) => sum + item.total, 0);
-
-      // Create order directly as approved (skips pending approval)
-      const order: Omit<Order, 'id'> = {
-        tableNumber,
-        userId: restaurantId,
-        cafeId: cafeId || restaurantId,
-        items,
-        totalAmount,
-        status: 'approved',
-        paymentStatus: 'pending',
-        timestamp: new Date().toISOString(),
-        waiterInfo,
-      };
-
-      const orderRef = await addDoc(collection(db, 'orders'), order);
-      const orderId = orderRef.id;
-
-      // Add to table bill
-      await this.addToTableBill(restaurantId, tableNumber, items, cafeId);
-
-      // Send to departments (kitchen/bar) via Telegram
-      await this.sendOrderToDepartments(orderId, { ...order, id: orderId }, restaurantId);
-
-      return orderId;
-    } catch (error) {
-      console.error('Error creating waiter order:', error);
-      throw error;
-    }
-  }
-
-  async getWaiterOrders(restaurantId: string, waiterId: string): Promise<Order[]> {
-    try {
-      const q = query(
-        collection(db, 'orders'),
-        where('userId', '==', restaurantId),
-        where('waiterInfo.waiterId', '==', waiterId),
-        orderBy('timestamp', 'desc')
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
-    } catch (error) {
-      console.error('Error fetching waiter orders:', error);
-      // Fallback: filter client-side if composite index not ready
-      try {
-        const allOrders = await this.getOrders(restaurantId);
-        return allOrders.filter(o => o.waiterInfo?.waiterId === waiterId);
-      } catch (fallbackError) {
-        console.error('Error in fallback waiter orders fetch:', fallbackError);
-        throw fallbackError;
-      }
-    }
-  }
-
-  listenToWaiterOrders(restaurantId: string, waiterId: string, callback: (orders: Order[]) => void): () => void {
-    // Listen to all restaurant orders and filter client-side for waiter
-    const q = query(
-      collection(db, 'orders'),
-      where('userId', '==', restaurantId),
-      orderBy('timestamp', 'desc')
-    );
-    
-    return onSnapshot(q, (snapshot) => {
-      const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
-      const waiterOrders = allOrders.filter(o => o.waiterInfo?.waiterId === waiterId);
-      callback(waiterOrders);
-    });
-  }
 }
 
-export const firebaseService = new FirebaseService();
+export const firebaseService = new FirebaseService();

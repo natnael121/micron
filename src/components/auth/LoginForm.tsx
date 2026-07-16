@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -9,7 +9,6 @@ export const LoginForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
   
   const { login } = useAuth();
 
@@ -20,9 +19,7 @@ export const LoginForm: React.FC = () => {
 
     const result = await login(email, password);
     
-    if (result.success) {
-      navigate('/');
-    } else {
+    if (!result.success) {
       setError(result.error || 'Login failed');
     }
     

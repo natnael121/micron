@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, X, Save, User, MessageSquare, TestTube, Users, Key } from 'lucide-react';
+import { Plus, Edit, Trash2, X, Save, User, MessageSquare, TestTube, Users } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { firebaseService } from '../../services/firebase';
 import { telegramService } from '../../services/telegram';
 import { WaiterAssignment } from '../../types';
-import { initializeApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import { firebaseConfig } from '../../config/firebase';
 
 export const WaiterManagement: React.FC = () => {
   const { user } = useAuth();
@@ -36,19 +33,14 @@ export const WaiterManagement: React.FC = () => {
   };
 
   const handleDeleteWaiter = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this waiter assignment and deactivate their login?')) return;
+    if (!confirm('Are you sure you want to delete this waiter assignment?')) return;
     
     try {
-      // 1. Delete assignment
       await firebaseService.deleteWaiterAssignment(id);
-      
-      // 2. Deactivate/Delete Firestore user profile (using assignment ID since they share the same ID)
-      await firebaseService.deleteWaiterProfile(id);
-      
       setWaiters(prev => prev.filter(waiter => waiter.id !== id));
     } catch (error) {
-      console.error('Error deleting waiter:', error);
-      alert('Failed to delete waiter');
+      console.error('Error deleting waiter assignment:', error);
+      alert('Failed to delete waiter assignment');
     }
   };
 
@@ -73,12 +65,9 @@ export const WaiterManagement: React.FC = () => {
 
   const toggleWaiterStatus = async (waiter: WaiterAssignment) => {
     try {
-      const newStatus = !waiter.isActive;
-      await firebaseService.updateWaiterAssignment(waiter.id, { isActive: newStatus });
-      await firebaseService.updateWaiterProfile(waiter.id, { status: newStatus ? 'active' : 'inactive' });
-      
+      await firebaseService.updateWaiterAssignment(waiter.id, { isActive: !waiter.isActive });
       setWaiters(prev => prev.map(w => 
-        w.id === waiter.id ? { ...w, isActive: newStatus } : w
+        w.id === waiter.id ? { ...w, isActive: !waiter.isActive } : w
       ));
     } catch (error) {
       console.error('Error updating waiter status:', error);
@@ -106,14 +95,14 @@ export const WaiterManagement: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Waiter Management</h1>
-          <p className="text-gray-600">Create waiter login accounts and assign table ranges</p>
+          <p className="text-gray-600">Assign tables to waiters and manage their notifications</p>
         </div>
         <button
           onClick={() => setShowAddWaiter(true)}
           className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
         >
           <Plus className="w-4 h-4" />
-          <span>Create Waiter Account</span>
+          <span>Add Waiter</span>
         </button>
       </div>
 
@@ -141,14 +130,14 @@ export const WaiterManagement: React.FC = () => {
                       ? 'bg-green-100 text-green-600 hover:bg-green-200' 
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
-                  title={waiter.isActive ? 'Deactivate Login' : 'Activate Login'}
+                  title={waiter.isActive ? 'Deactivate' : 'Activate'}
                 >
                   <Users className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setEditingWaiter(waiter)}
                   className="text-blue-600 hover:text-blue-700 p-1"
-                  title="Edit Account"
+                  title="Edit Waiter"
                 >
                   <Edit className="w-4 h-4" />
                 </button>
@@ -170,7 +159,7 @@ export const WaiterManagement: React.FC = () => {
                     ? 'bg-green-100 text-green-800' 
                     : 'bg-gray-100 text-gray-800'
                 }`}>
-                  {waiter.isActive ? 'Active' : 'Inactive / Disabled'}
+                  {waiter.isActive ? 'Active' : 'Inactive'}
                 </span>
               </div>
 
@@ -200,7 +189,6 @@ export const WaiterManagement: React.FC = () => {
                   </span>
                 </div>
               )}
-
               {waiter.telegramChatId && (
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">
@@ -237,8 +225,8 @@ export const WaiterManagement: React.FC = () => {
         {waiters.length === 0 && (
           <div className="col-span-full text-center py-12">
             <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No waiters created yet</h3>
-            <p className="text-gray-600 mb-4">Create waiter credentials and assign table ranges</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No waiters assigned yet</h3>
+            <p className="text-gray-600 mb-4">Create waiter assignments to organize table service</p>
             <button
               onClick={() => setShowAddWaiter(true)}
               className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
@@ -254,17 +242,17 @@ export const WaiterManagement: React.FC = () => {
         <WaiterModal
           waiter={editingWaiter}
           userId={user?.id || ''}
-          numberOfTables={user?.numberOfTables || 20}
+          numberOfTables={user?.numberOfTables || 10}
           existingAssignments={waiters}
           onClose={() => {
             setShowAddWaiter(false);
             setEditingWaiter(null);
           }}
-          onSave={(newAssignment) => {
+          onSave={(waiter) => {
             if (editingWaiter) {
-              setWaiters(prev => prev.map(w => w.id === newAssignment.id ? newAssignment : w));
+              setWaiters(prev => prev.map(w => w.id === waiter.id ? waiter : w));
             } else {
-              setWaiters(prev => [...prev, newAssignment]);
+              setWaiters(prev => [...prev, waiter]);
             }
             setShowAddWaiter(false);
             setEditingWaiter(null);
@@ -294,8 +282,6 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
   onSave 
 }) => {
   const [waiterName, setWaiterName] = useState(waiter?.waiterName || '');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [startTable, setStartTable] = useState(waiter?.startTable || 1);
   const [endTable, setEndTable] = useState(waiter?.endTable || 1);
   const [telegramChatId, setTelegramChatId] = useState(waiter?.telegramChatId || '');
@@ -315,23 +301,6 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
     { value: 6, label: 'Saturday', short: 'Sat' },
   ];
 
-  useEffect(() => {
-    // If editing, load email (we can't load password but we can change it)
-    if (waiter) {
-      const loadWaiterProfile = async () => {
-        try {
-          const profile = await firebaseService.getUserProfile(waiter.id);
-          if (profile) {
-            setEmail(profile.email || '');
-          }
-        } catch (err) {
-          console.error('Error loading waiter profile:', err);
-        }
-      };
-      loadWaiterProfile();
-    }
-  }, [waiter]);
-
   const handleDayToggle = (day: number) => {
     setWorkingDays(prev => 
       prev.includes(day) 
@@ -339,7 +308,6 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
         : [...prev, day].sort()
     );
   };
-
   const validateTableRange = () => {
     if (startTable > endTable) {
       return 'Start table must be less than or equal to end table';
@@ -370,16 +338,6 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
       return;
     }
 
-    if (!waiter && !email.trim()) {
-      alert('Please enter an email address for the waiter login');
-      return;
-    }
-
-    if (!waiter && password.length < 6) {
-      alert('Password must be at least 6 characters');
-      return;
-    }
-
     const validationError = validateTableRange();
     if (validationError) {
       alert(validationError);
@@ -389,52 +347,7 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
     setSaving(true);
 
     try {
-      let waiterId = waiter?.id || '';
-
-      // If creating new waiter, create Auth user via temporary Firebase app instance
-      if (!waiter) {
-        const tempApp = initializeApp(firebaseConfig, `temp-app-${Date.now()}`);
-        const tempAuth = getAuth(tempApp);
-        
-        try {
-          const userCredential = await createUserWithEmailAndPassword(
-            tempAuth,
-            email.trim(),
-            password
-          );
-          waiterId = userCredential.user.uid;
-        } catch (authError: any) {
-          alert(`Auth Error: ${authError.message}`);
-          await tempApp.delete();
-          setSaving(false);
-          return;
-        }
-        await tempApp.delete();
-      }
-
-      const assignedTablesArray: number[] = [];
-      for (let i = startTable; i <= endTable; i++) {
-        assignedTablesArray.push(i);
-      }
-
-      // 1. Create or Update user document in Firestore users collection
-      const profileData = {
-        email: email.trim(),
-        name: waiterName.trim(),
-        restaurantId: userId,
-        assignedTables: assignedTablesArray,
-        telegramChatId: telegramChatId.trim() || undefined,
-        status: (isActive ? 'active' : 'inactive') as 'active' | 'inactive'
-      };
-
-      if (waiter) {
-        await firebaseService.updateWaiterProfile(waiterId, profileData);
-      } else {
-        await firebaseService.createWaiterProfile(waiterId, profileData);
-      }
-
-      // 2. Create or Update waiter assignment
-      const waiterAssignmentData = {
+      const waiterData = {
         waiterName: waiterName.trim(),
         startTable,
         endTable,
@@ -448,13 +361,13 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
       };
 
       if (waiter) {
-        await firebaseService.updateWaiterAssignment(waiterId, waiterAssignmentData);
+        await firebaseService.updateWaiterAssignment(waiter.id, waiterData);
+        onSave({ ...waiter, ...waiterData });
       } else {
-        // Use the auth UID as the assignment document ID for consistency
-        const { db } = await import('../../config/firebase');
-        const { doc, setDoc } = await import('firebase/firestore');
-        await setDoc(doc(db, 'waiterAssignments', waiterId), waiterAssignmentData);
+        const id = await firebaseService.addWaiterAssignment(waiterData);
+        onSave({ id, ...waiterData } as WaiterAssignment);
       }
+<<<<<<< HEAD
 
       onSave({
         id: waiterId,
@@ -464,6 +377,11 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
       console.error('Error saving waiter:', error);
       const detail = error?.message || 'Unknown Firestore error';
       alert(`Failed to save waiter profile and assignment.\n\n${detail}`);
+=======
+    } catch (error) {
+      console.error('Error saving waiter assignment:', error);
+      alert('Failed to save waiter assignment');
+>>>>>>> 1a0d116e35eb4c3ce5b88c7ebb21a230e2943c37
     } finally {
       setSaving(false);
     }
@@ -496,7 +414,7 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
         <div className="p-6 border-b">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-gray-900">
-              {waiter ? 'Edit Waiter Account' : 'Create Waiter Account'}
+              {waiter ? 'Edit Waiter Assignment' : 'Add New Waiter'}
             </h2>
             <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
               <X className="w-6 h-6" />
@@ -504,9 +422,9 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Waiter Name *
             </label>
             <input
@@ -519,40 +437,9 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Login Email *
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={!!waiter}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
-              placeholder="waiter@restaurant.com"
-              required
-            />
-          </div>
-
-          {!waiter && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Password *
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                placeholder="Minimum 6 characters"
-                required
-              />
-            </div>
-          )}
-
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Start Table *
               </label>
               <input
@@ -567,7 +454,7 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 End Table *
               </label>
               <input
@@ -589,7 +476,7 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Telegram Chat ID (Optional)
             </label>
             <div className="space-y-2">
@@ -599,25 +486,30 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
                   value={telegramChatId}
                   onChange={(e) => setTelegramChatId(e.target.value)}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  placeholder="e.g., 123456789"
+                  placeholder="e.g., 123456789 or -1002701066037"
                 />
                 {telegramChatId && (
-                  <button
-                    type="button"
-                    onClick={testConnection}
-                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                  >
-                    Test
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={testConnection}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    >
+                      Test
+                    </button>
+                  </>
                 )}
               </div>
+              <p className="text-xs text-gray-500">
+                This waiter will receive notifications for their assigned tables
+              </p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Shift Start
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Shift Start Time
               </label>
               <input
                 type="time"
@@ -628,8 +520,8 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Shift End
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Shift End Time
               </label>
               <input
                 type="time"
@@ -641,7 +533,7 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Working Days
             </label>
             <div className="grid grid-cols-4 gap-2">
@@ -653,12 +545,11 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
                     onChange={() => handleDayToggle(day.value)}
                     className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                   />
-                  <span className="ml-1 text-xs text-gray-700">{day.short}</span>
+                  <span className="ml-2 text-sm text-gray-700">{day.short}</span>
                 </label>
               ))}
             </div>
           </div>
-
           <div className="flex items-center">
             <input
               type="checkbox"
@@ -668,35 +559,45 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
               className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
             />
             <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">
-              Account Active
+              Waiter is currently active
             </label>
           </div>
 
-          <div className="bg-blue-50 p-2.5 rounded-lg text-xs">
-            <h4 className="font-semibold text-blue-800 mb-0.5">Table Assignment Preview:</h4>
-            <p className="text-blue-700">
-              Responsible for{' '}
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <h4 className="font-medium text-blue-800 mb-1">Table Assignment Preview:</h4>
+            <p className="text-sm text-blue-700">
+              {waiterName || 'This waiter'} will be responsible for{' '}
               {startTable === endTable 
                 ? `Table ${startTable}` 
-                : `Tables ${startTable} to ${endTable}`}
+                : `Tables ${startTable} to ${endTable} (${endTable - startTable + 1} tables)`}
             </p>
           </div>
 
-          <div className="flex justify-end space-x-3 pt-4 border-t">
+          <div className="bg-yellow-50 p-3 rounded-lg">
+            <h4 className="font-medium text-yellow-800 mb-1">How to get Telegram Chat ID:</h4>
+            <ul className="text-xs text-yellow-700 space-y-1">
+              <li>• Send a message to @userinfobot on Telegram</li>
+              <li>• Send /start command</li>
+              <li>• Copy the Chat ID from the response</li>
+              <li>• For group chats, add the bot to the group first</li>
+            </ul>
+          </div>
+
+          <div className="flex justify-end space-x-4 pt-6 border-t">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving || !!validationError}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 flex items-center space-x-2 text-sm"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 flex items-center space-x-2"
             >
               <Save className="w-4 h-4" />
-              <span>{saving ? 'Creating...' : 'Save Waiter'}</span>
+              <span>{saving ? 'Saving...' : 'Save Waiter'}</span>
             </button>
           </div>
         </form>
