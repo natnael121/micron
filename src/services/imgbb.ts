@@ -1,4 +1,4 @@
-const IMGBB_API_KEY = 'f6f560dbdcf0c91aea57b3cd55097799';
+const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY || '';
 const IMGBB_API_URL = 'https://api.imgbb.com/1/upload';
 
 export interface ImgBBResponse {
