@@ -1,13 +1,13 @@
 import axios from 'axios';
 import { Order, PendingOrder, OrderItem } from '../types';
 
-const BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '';
+const BOT_TOKEN = '1941939105:AAHJ9XhL9uRyzQ9uhi3F4rKAQIbQ9D7YRs8'; // Replace with your actual bot token
 // Default chat IDs (fallback)
-const DEFAULT_ADMIN_CHAT_ID = Number(import.meta.env.VITE_TELEGRAM_ADMIN_CHAT_ID) || -1002701066037;
-const DEFAULT_KITCHEN_CHAT_ID = Number(import.meta.env.VITE_TELEGRAM_KITCHEN_CHAT_ID) || -1002660493020;
-const DEFAULT_BAR_CHAT_ID = Number(import.meta.env.VITE_TELEGRAM_BAR_CHAT_ID) || -1002859150516;
+const DEFAULT_ADMIN_CHAT_ID = -1002701066037;
+const DEFAULT_KITCHEN_CHAT_ID = -1002660493020;
+const DEFAULT_BAR_CHAT_ID = -1002859150516;
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
-const WEBHOOK_URL = import.meta.env.VITE_TELEGRAM_WEBHOOK_URL || 'https://the-last-bot.vercel.app/api/telegram-webhook';
+const WEBHOOK_URL = 'https://the-last-bot.vercel.app/api/telegram-webhook';
 
 class TelegramService {
   private async getUserTelegramSettings(userId: string) {
