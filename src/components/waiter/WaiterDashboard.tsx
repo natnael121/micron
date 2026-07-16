@@ -23,22 +23,22 @@ export const WaiterDashboard: React.FC = () => {
 
   const restaurantId = getRestaurantId();
   const numberOfTables = restaurantOwner?.numberOfTables || 20;
-  const assignedTables = user?.assignedTables || [];
-  const hasAssignment = assignedTables.length > 0;
+  const [waiterAssignment, setWaiterAssignment] = useState<{ startTable: number; endTable: number } | null>(null);
+  const hasAssignment = !!waiterAssignment;
 
   // Generate table numbers the waiter can access
-  const tables = hasAssignment 
-    ? assignedTables 
+  const tables = hasAssignment
+    ? Array.from({ length: waiterAssignment!.endTable - waiterAssignment!.startTable + 1 }, (_, i) => waiterAssignment!.startTable + i)
     : Array.from({ length: numberOfTables }, (_, i) => i + 1);
 
   useEffect(() => {
     if (!restaurantId || !user) return;
     loadData();
-    
+
     // Listen for real-time order updates
     const unsubscribe = firebaseService.listenToWaiterOrders(
-      restaurantId, 
-      user.id, 
+      restaurantId,
+      user.id,
       (orders) => {
         const today = new Date().toISOString().split('T')[0];
         setTodayOrders(orders.filter(o => o.timestamp.startsWith(today)));
@@ -51,8 +51,19 @@ export const WaiterDashboard: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const bills = await firebaseService.getTableBills(restaurantId);
+      const [bills, assignments] = await Promise.all([
+        firebaseService.getTableBills(restaurantId),
+        firebaseService.getWaiterAssignments(restaurantId),
+      ]);
       setTableBills(bills);
+
+      // Find this waiter's active assignment
+      const myAssignment = assignments.find(
+        a => a.userId === user?.id && a.isActive
+      );
+      if (myAssignment) {
+        setWaiterAssignment({ startTable: myAssignment.startTable, endTable: myAssignment.endTable });
+      }
     } catch (error) {
       console.error('Error loading waiter data:', error);
     } finally {
