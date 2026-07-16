@@ -460,9 +460,10 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
         id: waiterId,
         ...waiterAssignmentData
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving waiter:', error);
-      alert('Failed to save waiter profile and assignment');
+      const detail = error?.message || 'Unknown Firestore error';
+      alert(`Failed to save waiter profile and assignment.\n\n${detail}`);
     } finally {
       setSaving(false);
     }
