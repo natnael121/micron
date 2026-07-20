@@ -11,9 +11,15 @@ import {
   orderBy, 
   limit,
   onSnapshot,
-  Timestamp
+  Timestamp,
+  setDoc,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+
+// Base URL for the /api/send-push serverless function
+const PUSH_API_URL = import.meta.env.VITE_TELEGRAM_WEBHOOK_URL
+  ? import.meta.env.VITE_TELEGRAM_WEBHOOK_URL.replace('/api/telegram-webhook', '/api/send-push')
+  : '/api/send-push';
 import { 
   NotificationTemplate,
   ScheduledNotification,
@@ -266,33 +272,63 @@ class NotificationSystemService {
   ): Promise<string[]> {
     try {
       const deliveryIds: string[] = [];
-      
-      // Get notification settings to check consent requirements
-      const settings = await this.getNotificationSettings(userId);
-      
-      // Determine target tables
-      const tables = targetTables === 'all' 
-        ? Array.from({ length: 50 }, (_, i) => i + 1) // Assuming max 50 tables
-        : targetTables;
-      
-      // Send to each table
-      for (const tableNumber of tables) {
+
+      // === BULK SEND: target is 'all' tables ===
+      // Send one FCM multicast to all registered tokens instead of iterating dummy table numbers
+      if (targetTables === 'all') {
+        // 1. Firestore liveNotification with wildcard (customers with active listeners get it)
+        const deliveryRef = await addDoc(collection(db, 'notificationDeliveries'), {
+          notificationId: `broadcast_${Date.now()}`,
+          tableNumber: 'all',
+          userId,
+          status: 'delivered',
+          deliveredAt: new Date().toISOString(),
+        });
+        deliveryIds.push(deliveryRef.id);
+
+        // Write a broadcast liveNotification (tableNumber='all')
+        await addDoc(collection(db, 'liveNotifications'), {
+          userId,
+          tableNumber: 'all',
+          ...notification,
+          timestamp: new Date().toISOString(),
+          ttl: new Date(Date.now() + 120000).toISOString(),
+        });
+
+        // 2. FCM push to all tokens registered for this restaurant
         try {
-          // Check customer preferences if consent is required
+          const allTokens = await this.getAllTokensForRestaurant(userId);
+          if (allTokens.length > 0) {
+            await fetch(PUSH_API_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                tokens: allTokens,
+                title: notification.title,
+                body: notification.message,
+                data: { type: notification.type, userId, tableNumber: 'all' },
+              }),
+            });
+          }
+        } catch (fcmErr) {
+          console.warn('Bulk FCM push failed (non-critical):', fcmErr);
+        }
+
+        return deliveryIds;
+      }
+
+      // === TABLE-SPECIFIC SEND ===
+      const settings = await this.getNotificationSettings(userId);
+
+      for (const tableNumber of targetTables) {
+        try {
           if (settings?.requireConsent) {
             const preferences = await this.getCustomerPreferencesForTable(userId, tableNumber.toString());
-            if (!preferences?.notificationsEnabled || !preferences?.consentGiven) {
-              continue; // Skip this table
-            }
-            
-            // Check notification type preferences
+            if (!preferences?.notificationsEnabled || !preferences?.consentGiven) continue;
             const typeAllowed = this.checkNotificationTypeAllowed(notification.type, preferences.preferences);
-            if (!typeAllowed) {
-              continue; // Skip this table
-            }
+            if (!typeAllowed) continue;
           }
-          
-          // Create delivery record
+
           const delivery: Omit<NotificationDelivery, 'id'> = {
             notificationId: `immediate_${Date.now()}_${tableNumber}`,
             tableNumber: tableNumber.toString(),
@@ -300,18 +336,17 @@ class NotificationSystemService {
             status: 'delivered',
             deliveredAt: new Date().toISOString(),
           };
-          
+
           const deliveryRef = await addDoc(collection(db, 'notificationDeliveries'), delivery);
           deliveryIds.push(deliveryRef.id);
-          
-          // Trigger real-time notification to customer
+
           await this.triggerCustomerNotification(userId, tableNumber.toString(), notification);
-          
         } catch (error) {
           console.error(`Error sending notification to table ${tableNumber}:`, error);
         }
       }
-      
+
+
       return deliveryIds;
     } catch (error) {
       console.error('Error sending immediate notification:', error);
@@ -358,18 +393,103 @@ class NotificationSystemService {
   }
 
   private async triggerCustomerNotification(userId: string, tableNumber: string, notification: any): Promise<void> {
-    // This will be handled by the real-time listener on the customer side
-    // We'll create a temporary notification document that the customer will listen to
+    // 1. Write to Firestore liveNotifications so in-app popups still work
     try {
       await addDoc(collection(db, 'liveNotifications'), {
         userId,
         tableNumber,
         ...notification,
         timestamp: new Date().toISOString(),
-        ttl: new Date(Date.now() + 60000).toISOString(), // 1 minute TTL
+        ttl: new Date(Date.now() + 60000).toISOString(),
       });
     } catch (error) {
-      console.error('Error triggering customer notification:', error);
+      console.error('Error writing liveNotification:', error);
+    }
+
+    // 2. Send a real FCM push to every browser token registered for this table
+    try {
+      const tokens = await this.getTokensForTable(userId, tableNumber);
+      if (tokens.length > 0) {
+        await fetch(PUSH_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tokens,
+            title: notification.title,
+            body: notification.message,
+            data: {
+              type: notification.type,
+              userId,
+              tableNumber,
+              url: `/menu/${userId}/table/${tableNumber}`,
+            },
+          }),
+        });
+      }
+    } catch (error) {
+      // FCM push failing should not break in-app delivery
+      console.warn('FCM push failed (non-critical):', error);
+    }
+  }
+
+  // =======================
+  // FCM Token Management
+  // =======================
+
+  /**
+   * Save a customer's FCM push token linked to their restaurant + table.
+   * Called from the customer side after permission is granted.
+   */
+  async savePushToken(userId: string, tableNumber: string, token: string): Promise<void> {
+    try {
+      const tokenDocId = `${userId}_${tableNumber}_${token.slice(-16)}`;
+      await setDoc(
+        doc(db, 'pushTokens', tokenDocId),
+        {
+          userId,
+          tableNumber,
+          token,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    } catch (error) {
+      console.error('Error saving push token:', error);
+    }
+  }
+
+  /**
+   * Retrieve all active FCM tokens registered for a specific restaurant + table.
+   */
+  private async getTokensForTable(userId: string, tableNumber: string): Promise<string[]> {
+    try {
+      const q = query(
+        collection(db, 'pushTokens'),
+        where('userId', '==', userId),
+        where('tableNumber', '==', tableNumber)
+      );
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => d.data().token as string).filter(Boolean);
+    } catch (error) {
+      console.error('Error fetching push tokens:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Retrieve all FCM tokens for ALL tables of a restaurant (used for "send to all" broadcasts).
+   */
+  async getAllTokensForRestaurant(userId: string): Promise<string[]> {
+    try {
+      const q = query(
+        collection(db, 'pushTokens'),
+        where('userId', '==', userId)
+      );
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => d.data().token as string).filter(Boolean);
+    } catch (error) {
+      console.error('Error fetching all push tokens:', error);
+      return [];
     }
   }
 

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { customerNotificationService } from '../services/customerNotifications';
+import { getFCMToken, onFCMMessage } from '../config/firebase';
+import { notificationSystemService } from '../services/notificationSystem';
 
 export const useCustomerNotifications = (tableNumber: string, userId?: string) => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
@@ -12,70 +14,108 @@ export const useCustomerNotifications = (tableNumber: string, userId?: string) =
     setIsEnabled(customerNotificationService.isEnabled());
   }, []);
 
+  // When already enabled on mount (e.g. after page refresh), re-register token silently
   useEffect(() => {
     if (userId && tableNumber && isEnabled) {
+      registerFCMToken();
       startListening();
     }
   }, [userId, tableNumber, isEnabled]);
 
-  const requestPermission = useCallback(async () => {
+  /**
+   * Ask browser for notification permission AND register an FCM push token.
+   * This is the one function to call from UI consent buttons.
+   */
+  const requestPermission = useCallback(async (): Promise<boolean> => {
     const granted = await customerNotificationService.requestPermission();
     setPermission(customerNotificationService.getPermissionStatus());
     setIsEnabled(granted);
-    return granted;
-  }, []);
 
+    if (granted && userId && tableNumber) {
+      await registerFCMToken();
+    }
+
+    return granted;
+  }, [userId, tableNumber]);
+
+  /**
+   * Fetch the FCM token and save it to Firestore so the restaurant can push to this device.
+   */
+  const registerFCMToken = useCallback(async () => {
+    if (!userId || !tableNumber) return;
+    try {
+      const token = await getFCMToken();
+      if (token) {
+        await notificationSystemService.savePushToken(userId, tableNumber, token);
+      }
+    } catch (err) {
+      // Token registration is best-effort; never block UI
+      console.warn('FCM token registration failed:', err);
+    }
+  }, [userId, tableNumber]);
+
+  /**
+   * Set up Firestore real-time listeners for order/payment/waiter events.
+   * Also listen to foreground FCM messages so they display as popups while the tab is open.
+   */
   const startListening = useCallback(() => {
     if (!userId || !tableNumber) return;
 
-    // Set up real-time listeners for customer-relevant events
     const unsubscribers: (() => void)[] = [];
 
-    // Listen for order status changes
-    const ordersListener = customerNotificationService.listenToOrderUpdates(
-      userId, 
-      tableNumber, 
-      (order) => {
+    // Order status changes
+    unsubscribers.push(
+      customerNotificationService.listenToOrderUpdates(userId, tableNumber, (order) => {
         customerNotificationService.notifyOrderStatusUpdate(order);
-      }
+      })
     );
 
-    // Listen for payment confirmations
-    const paymentsListener = customerNotificationService.listenToPaymentUpdates(
-      userId,
-      tableNumber,
-      (confirmation) => {
+    // Payment confirmations
+    unsubscribers.push(
+      customerNotificationService.listenToPaymentUpdates(userId, tableNumber, (confirmation) => {
         customerNotificationService.notifyPaymentUpdate(confirmation);
-      }
+      })
     );
 
-    // Listen for waiter responses
-    const waiterListener = customerNotificationService.listenToWaiterResponses(
-      userId,
-      tableNumber,
-      (response) => {
+    // Waiter responses
+    unsubscribers.push(
+      customerNotificationService.listenToWaiterResponses(userId, tableNumber, (response) => {
         customerNotificationService.notifyWaiterResponse(response);
-      }
+      })
     );
 
-    unsubscribers.push(ordersListener, paymentsListener, waiterListener);
+    // Foreground FCM messages (when tab is open, FCM doesn't show a system notification —
+    // we need to show it ourselves via the service worker)
+    const unsubFCM = onFCMMessage((payload) => {
+      const { title, body } = payload.notification || {};
+      if (title && body) {
+        customerNotificationService.showNotification({
+          title,
+          body,
+          icon: '/icon-192.png',
+          tag: `fcm-foreground-${Date.now()}`,
+          data: payload.data,
+        });
+      }
+    });
+    unsubscribers.push(unsubFCM);
 
     return () => {
-      unsubscribers.forEach(unsub => unsub());
+      unsubscribers.forEach((unsub) => unsub());
     };
-  }, [userId, tableNumber, isEnabled]);
+  }, [userId, tableNumber]);
 
-  const testNotification = useCallback(async () => {
+  const testNotification = useCallback(async (): Promise<boolean> => {
     if (!isEnabled) {
       const granted = await requestPermission();
       if (!granted) return false;
     }
 
     await customerNotificationService.showNotification({
-      title: 'Test Notification',
-      body: 'Notifications are working! You\'ll receive updates about your orders.',
+      title: 'Notifications are working! ✅',
+      body: "You'll receive updates about your orders and restaurant services.",
       icon: '/icon-192.png',
-      tag: 'test-notification'
+      tag: 'test-notification',
     });
 
     return true;

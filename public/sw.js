@@ -1,158 +1,82 @@
-// Service Worker for handling notifications
-const CACHE_NAME = 'restaurant-notifications-v1';
+// Firebase Cloud Messaging compatible Service Worker
+// Handles both FCM background push and local notification clicks
 
-self.addEventListener('install', (event) => {
-  console.log('Service Worker installing');
+importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
+
+// ── Firebase init (must match app config) ────────────────────────────────────
+// These values are safe to be public — they identify the project, not secrets.
+firebase.initializeApp({
+  apiKey: 'AIzaSyCW4ZS2g9fV-ktNvjMJK5kCKlEEKsX2POo',
+  authDomain: 'menu-ordering-app-fe429.firebaseapp.com',
+  projectId: 'menu-ordering-app-fe429',
+  storageBucket: 'menu-ordering-app-fe429.firebasestorage.app',
+  messagingSenderId: '36544456072',
+  appId: '1:36544456072:web:e05d3097e797202deb063d',
+});
+
+const messaging = firebase.messaging();
+
+// ── Background message handler (tab closed / not focused) ────────────────────
+messaging.onBackgroundMessage((payload) => {
+  const { title, body, icon, image, data } = payload.notification || {};
+  const notifTitle = title || 'Restaurant Update';
+  const notifOptions = {
+    body: body || '',
+    icon: icon || '/icon-192.png',
+    badge: '/icon-192.png',
+    image: image,
+    tag: data?.tag || `fcm-${Date.now()}`,
+    data: data || {},
+    requireInteraction: true,
+    vibrate: [200, 100, 200],
+  };
+  return self.registration.showNotification(notifTitle, notifOptions);
+});
+
+// ── Service Worker lifecycle ──────────────────────────────────────────────────
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker activating');
   event.waitUntil(self.clients.claim());
 });
 
-// Handle notification clicks
+// ── Notification click handler ────────────────────────────────────────────────
 self.addEventListener('notificationclick', (event) => {
-  console.log('Notification clicked:', event);
-  
   event.notification.close();
-  
-  const data = event.notification.data;
+
+  const data = event.notification.data || {};
   const action = event.action;
-  
-  // Handle different notification actions
-  if (action === 'view' || !action) {
-    // Open appropriate page based on notification type
-    event.waitUntil(
-      self.clients.openWindow(
-        data?.type === 'order_update' || data?.type === 'payment_update' || data?.type === 'waiter_response'
-          ? `/menu/${data.userId || ''}/table/${data.tableNumber || '1'}`
-          : '/admin'
-      )
-    );
+
+  let targetUrl = '/';
+
+  if (data.type === 'order_update' || data.type === 'payment_update' || data.type === 'waiter_response') {
+    targetUrl = `/menu/${data.userId || ''}/table/${data.tableNumber || '1'}`;
   } else if (action === 'view_menu') {
-    // Open menu page
-    event.waitUntil(
-      self.clients.openWindow(`/menu/${data.userId || ''}/table/${data.tableNumber || '1'}`)
-    );
+    targetUrl = `/menu/${data.userId || ''}/table/${data.tableNumber || '1'}`;
   } else if (action === 'view_bill') {
-    // Open menu page and trigger bill modal
-    event.waitUntil(
-      self.clients.openWindow(`/menu/${data.userId || ''}/table/${data.tableNumber || '1'}?action=view_bill`)
-    );
+    targetUrl = `/menu/${data.userId || ''}/table/${data.tableNumber || '1'}?action=view_bill`;
   } else if (action === 'retry_payment') {
-    // Open menu page and trigger payment modal
-    event.waitUntil(
-      self.clients.openWindow(`/menu/${data.userId || ''}/table/${data.tableNumber || '1'}?action=retry_payment`)
-    );
-  } else if (action === 'approve' && data?.type === 'order') {
-    // Handle order approval
-    event.waitUntil(
-      handleOrderAction(data.orderId, 'approve')
-    );
-  } else if (action === 'approve' && data?.type === 'payment') {
-    // Handle payment approval
-    event.waitUntil(
-      handlePaymentAction(data.confirmationId, 'approve')
-    );
-  } else if (action === 'reject' && data?.type === 'payment') {
-    // Handle payment rejection
-    event.waitUntil(
-      handlePaymentAction(data.confirmationId, 'reject')
-    );
-  } else if (action === 'acknowledge' && data?.type === 'waiter_call') {
-    // Handle waiter call acknowledgment
-    event.waitUntil(
-      handleWaiterCallAck(data.tableNumber)
-    );
+    targetUrl = `/menu/${data.userId || ''}/table/${data.tableNumber || '1'}?action=retry_payment`;
   }
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      // Focus existing tab if already open
+      const existingClient = clients.find((c) => c.url.includes(targetUrl));
+      if (existingClient) {
+        return existingClient.focus();
+      }
+      return self.clients.openWindow(targetUrl);
+    })
+  );
 });
 
-// Handle background sync for offline actions
+// ── Background sync ───────────────────────────────────────────────────────────
 self.addEventListener('sync', (event) => {
   if (event.tag === 'background-sync') {
-    event.waitUntil(handleBackgroundSync());
+    event.waitUntil(Promise.resolve());
   }
 });
-
-// Handle push messages (for future server-sent notifications)
-self.addEventListener('push', (event) => {
-  if (event.data) {
-    const data = event.data.json();
-    
-    event.waitUntil(
-      self.registration.showNotification(data.title, {
-        body: data.body,
-        icon: data.icon || '/icon-192.png',
-        badge: '/icon-192.png',
-        tag: data.tag,
-        data: data.data,
-        actions: data.actions,
-        requireInteraction: true,
-      })
-    );
-  }
-});
-
-// Helper functions for handling actions
-async function handleOrderAction(orderId, action) {
-  try {
-    // This would typically make an API call to your backend
-    console.log(`Handling order ${orderId} with action: ${action}`);
-    
-    // Show success notification
-    self.registration.showNotification('Action Completed', {
-      body: `Order ${action}d successfully`,
-      icon: '/icon-192.png',
-      tag: 'action-success'
-    });
-  } catch (error) {
-    console.error('Error handling order action:', error);
-    
-    // Show error notification
-    self.registration.showNotification('Action Failed', {
-      body: 'Please try again from the admin panel',
-      icon: '/icon-192.png',
-      tag: 'action-error'
-    });
-  }
-}
-
-async function handlePaymentAction(confirmationId, action) {
-  try {
-    console.log(`Handling payment ${confirmationId} with action: ${action}`);
-    
-    self.registration.showNotification('Payment Processed', {
-      body: `Payment ${action}d successfully`,
-      icon: '/icon-192.png',
-      tag: 'payment-success'
-    });
-  } catch (error) {
-    console.error('Error handling payment action:', error);
-    
-    self.registration.showNotification('Action Failed', {
-      body: 'Please try again from the admin panel',
-      icon: '/icon-192.png',
-      tag: 'payment-error'
-    });
-  }
-}
-
-async function handleWaiterCallAck(tableNumber) {
-  try {
-    console.log(`Acknowledging waiter call for table ${tableNumber}`);
-    
-    self.registration.showNotification('Call Acknowledged', {
-      body: `On the way to Table ${tableNumber}`,
-      icon: '/icon-192.png',
-      tag: 'waiter-ack'
-    });
-  } catch (error) {
-    console.error('Error acknowledging waiter call:', error);
-  }
-}
-
-async function handleBackgroundSync() {
-  // Handle any pending actions that were queued while offline
-  console.log('Handling background sync');
-}
