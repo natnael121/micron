@@ -24,6 +24,10 @@ import { WaiterDashboard } from './components/waiter/WaiterDashboard';
 import { WaiterOrderPage } from './components/waiter/WaiterOrderPage';
 import { WaiterActiveOrders } from './components/waiter/WaiterActiveOrders';
 
+// Kitchen Panel Components
+import { KitchenLayout } from './components/kitchen/KitchenLayout';
+import { KitchenDashboard } from './components/kitchen/KitchenDashboard';
+
 function App() {
   const { user, loading, userRole } = useAuth();
 
@@ -42,6 +46,7 @@ function App() {
   const getRedirectPath = () => {
     if (userRole === 'waiter') return '/waiter';
     if (userRole === 'superadmin') return '/super-admin';
+    if (userRole === 'kitchen') return '/kitchen';
     return '/admin';
   };
 
@@ -70,6 +75,11 @@ function App() {
           <Route index element={<WaiterDashboard />} />
           <Route path="orders" element={<WaiterActiveOrders />} />
           <Route path="order/:tableNumber" element={<WaiterOrderPage />} />
+        </Route>
+        
+        {/* Protected Kitchen Routes */}
+        <Route path="/kitchen" element={user && userRole === 'kitchen' ? <KitchenLayout /> : <Navigate to="/login" replace />}>
+          <Route index element={<KitchenDashboard />} />
         </Route>
         
         {/* Protected Admin Routes */}

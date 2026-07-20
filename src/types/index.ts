@@ -10,8 +10,9 @@ export interface User {
   status?: 'active' | 'inactive' | 'suspended';
   created_at: string;
   subscription?: 'free' | 'premium';
-  role?: 'owner' | 'waiter'; // Account role — defaults to 'owner' for backward compat
-  restaurantId?: string; // For waiters: links to the restaurant owner's userId
+  role?: 'owner' | 'waiter' | 'kitchen'; // Account role — defaults to 'owner' for backward compat
+  restaurantId?: string; // For waiters/kitchen: links to the restaurant owner's userId
+  departmentId?: string; // For kitchen: links to their specific departmentId
   assignedTables?: number[]; // For waiters: quick reference of assigned table numbers
   numberOfTables?: number;
   telegramChatId?: string; // Backward compatibility
@@ -179,6 +180,7 @@ export interface Order {
   totalAmount: number;
   status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled' | 'approved';
   paymentStatus: 'pending' | 'paid' | 'failed';
+  completedDepartments?: string[]; // Stations that finished preparation
   timestamp: string;
   customerInfo?: {
     name?: string;

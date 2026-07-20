@@ -4,7 +4,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { User } from '../types';
 
-export type UserRole = 'owner' | 'waiter' | 'superadmin';
+export type UserRole = 'owner' | 'waiter' | 'superadmin' | 'kitchen';
 
 interface AuthContextType {
   user: User | null;
@@ -32,14 +32,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const superAdminEmail = import.meta.env.VITE_SUPER_ADMIN_EMAIL || 'natnaeltsegaye70@gmail.com';
     if (userData.email === superAdminEmail) return 'superadmin';
     if (userData.role === 'waiter') return 'waiter';
+    if (userData.role === 'kitchen') return 'kitchen';
     return 'owner';
   };
 
   const userRole = getUserRole(user);
 
-  // For waiters, get the restaurant owner's userId for querying data
+  // For waiters and kitchen staff, get the restaurant owner's userId for querying data
   const getRestaurantId = (): string => {
-    if (user?.role === 'waiter' && user.restaurantId) {
+    if ((user?.role === 'waiter' || user?.role === 'kitchen') && user.restaurantId) {
       return user.restaurantId;
     }
     return user?.id || '';

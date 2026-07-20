@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { firebaseService } from '../../services/firebase';
 import { telegramService } from '../../services/telegram';
 import { WaiterAssignment } from '../../types';
-import { initializeApp } from 'firebase/app';
+import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { firebaseConfig } from '../../config/firebase';
 
@@ -405,11 +405,11 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
           waiterId = userCredential.user.uid;
         } catch (authError: any) {
           alert(`Auth Error: ${authError.message}`);
-          await tempApp.delete();
+          await deleteApp(tempApp);
           setSaving(false);
           return;
         }
-        await tempApp.delete();
+        await deleteApp(tempApp);
       }
 
       const assignedTablesArray: number[] = [];
@@ -463,9 +463,9 @@ const WaiterModal: React.FC<WaiterModalProps> = ({
         id: waiterId,
         ...waiterAssignmentData
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving waiter:', error);
-      alert('Failed to save waiter profile and assignment');
+      alert(`Failed to save waiter profile and assignment: ${error?.message || error}`);
     } finally {
       setSaving(false);
     }

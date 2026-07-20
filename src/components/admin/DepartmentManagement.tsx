@@ -4,6 +4,9 @@ import { useAuth } from '../../hooks/useAuth';
 import { firebaseService } from '../../services/firebase';
 import { telegramService } from '../../services/telegram';
 import { Department } from '../../types';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { firebaseConfig } from '../../config/firebase';
 
 const DepartmentManagement: React.FC = () => {
   const { user } = useAuth();
@@ -33,10 +36,11 @@ const DepartmentManagement: React.FC = () => {
   };
 
   const handleDeleteDepartment = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this department?')) return;
+    if (!confirm('Are you sure you want to delete this department and its login account?')) return;
     
     try {
       await firebaseService.deleteDepartment(id);
+      await firebaseService.deleteWaiterProfile(id);
       setDepartments(prev => prev.filter(dept => dept.id !== id));
     } catch (error) {
       console.error('Error deleting department:', error);
@@ -207,6 +211,8 @@ interface DepartmentModalProps {
 
 const DepartmentModal: React.FC<DepartmentModalProps> = ({ department, userId, onClose, onSave }) => {
   const [name, setName] = useState(department?.name || '');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [telegramChatId, setTelegramChatId] = useState(department?.telegramChatId || '');
   const [adminChatId, setAdminChatId] = useState(department?.adminChatId || '');
   const [role, setRole] = useState<'kitchen' | 'cashier' | 'admin'>(department?.role === 'bar' ? 'kitchen' : (department?.role || 'kitchen'));
@@ -236,6 +242,23 @@ const DepartmentModal: React.FC<DepartmentModalProps> = ({ department, userId, o
       default: return 'Department';
     }
   };
+
+  useEffect(() => {
+    if (department) {
+      const loadDepartmentProfile = async () => {
+        try {
+          const profile = await firebaseService.getUserProfile(department.id);
+          if (profile) {
+            setEmail(profile.email || '');
+          }
+        } catch (err) {
+          console.error('Error loading department profile:', err);
+        }
+      };
+      loadDepartmentProfile();
+    }
+  }, [department]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -254,9 +277,66 @@ const DepartmentModal: React.FC<DepartmentModalProps> = ({ department, userId, o
       return;
     }
 
+    if (!department && !email.trim()) {
+      alert('Please enter an email address for the department login');
+      return;
+    }
+
+    if (!department && password.length < 6) {
+      alert('Password must be at least 6 characters');
+      return;
+    }
+
     setSaving(true);
 
     try {
+      let departmentUserId = department?.id || '';
+
+      // If creating new department, create Auth user via temporary Firebase app instance
+      if (!department) {
+        const tempApp = initializeApp(firebaseConfig, `temp-app-${Date.now()}`);
+        const tempAuth = getAuth(tempApp);
+        
+        try {
+          const userCredential = await createUserWithEmailAndPassword(
+            tempAuth,
+            email.trim(),
+            password
+          );
+          departmentUserId = userCredential.user.uid;
+        } catch (authError: any) {
+          alert(`Auth Error: ${authError.message}`);
+          await deleteApp(tempApp);
+          setSaving(false);
+          return;
+        }
+        await deleteApp(tempApp);
+      }
+
+      // Write user profile to 'users' collection
+      const { db } = await import('../../config/firebase');
+      const { doc, setDoc } = await import('firebase/firestore');
+
+      const profileData = {
+        email: email.trim(),
+        name: name.trim(),
+        role: 'kitchen',
+        restaurantId: userId,
+        departmentId: departmentUserId,
+        status: 'active',
+        created_at: department?.created_at || new Date().toISOString()
+      };
+
+      if (department) {
+        await firebaseService.updateWaiterProfile(departmentUserId, {
+          email: email.trim(),
+          name: name.trim()
+        });
+      } else {
+        await setDoc(doc(db, 'users', departmentUserId), profileData);
+      }
+
+      // Save department document
       const departmentData = {
         name: name.trim(),
         telegramChatId: telegramChatId.trim(),
@@ -271,16 +351,18 @@ const DepartmentModal: React.FC<DepartmentModalProps> = ({ department, userId, o
       if (role === 'cashier' && adminChatId.trim()) {
         departmentData.adminChatId = adminChatId.trim();
       }
+
       if (department) {
-        await firebaseService.updateDepartment(department.id, departmentData);
+        await firebaseService.updateDepartment(departmentUserId, departmentData);
         onSave({ ...department, ...departmentData });
       } else {
-        const id = await firebaseService.addDepartment(departmentData);
-        onSave({ id, ...departmentData } as Department);
+        // Use the auth UID as the department document ID for consistency
+        await setDoc(doc(db, 'departments', departmentUserId), departmentData);
+        onSave({ id: departmentUserId, ...departmentData } as Department);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving department:', error);
-      alert('Failed to save department');
+      alert(`Failed to save department: ${error?.message || error}`);
     } finally {
       setSaving(false);
     }
@@ -359,6 +441,40 @@ const DepartmentModal: React.FC<DepartmentModalProps> = ({ department, userId, o
               {role === 'admin' && 'Receives day reports and administrative notifications'}
             </p>
           </div>
+
+          <div className="border-t pt-4 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-900">Login Account Settings</h3>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Login Email Address *
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                placeholder="e.g., kitchen@restaurant.com"
+                required
+              />
+            </div>
+
+            {!department && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Login Password *
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  placeholder="Minimum 6 characters"
+                  required
+                />
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {role === 'cashier' ? 'Cashier' : role === 'admin' ? 'Admin' : 'Department'} Telegram Chat ID *

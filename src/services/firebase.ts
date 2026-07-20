@@ -967,6 +967,21 @@ class FirebaseService {
 
   // Real-time Listeners
   // =======================
+
+  listenToActiveOrders(restaurantId: string, callback: (orders: Order[]) => void): () => void {
+    const q = query(
+      collection(db, 'orders'),
+      where('userId', '==', restaurantId),
+      orderBy('timestamp', 'asc')
+    );
+    
+    return onSnapshot(q, (snapshot) => {
+      const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+      callback(orders);
+    }, (error) => {
+      console.error("Error listening to active orders:", error);
+    });
+  }
   
   listenToPendingOrders(userId: string, callback: (orders: PendingOrder[]) => void): () => void {
     const q = query(
