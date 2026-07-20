@@ -78,9 +78,10 @@ export const BillModal: React.FC<BillModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-900 rounded-2xl max-w-sm w-full text-center shadow-xl">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-bold text-gray-900">Current Bill</h2>
+      <div className="bg-gray-900 rounded-2xl max-w-sm w-full max-h-[90vh] flex flex-col overflow-hidden shadow-xl animate-slide-up">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-800 flex-shrink-0">
+          <h2 className="text-lg font-bold text-white">Current Bill</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-800 rounded-full transition-colors"
@@ -90,6 +91,7 @@ export const BillModal: React.FC<BillModalProps> = ({
           </button>
         </div>
 
+        {/* Scrollable Bill Content */}
         <div className="flex-1 overflow-y-auto p-4" ref={billRef}>
           {/* Business Header */}
           <div className="text-center mb-6 pb-4 border-b border-gray-800">
@@ -101,7 +103,7 @@ export const BillModal: React.FC<BillModalProps> = ({
           </div>
 
           {/* Bill Items */}
-          <div className="space-y-3 mb-6">
+          <div className="space-y-3 mb-6 text-left">
             <h3 className="font-semibold text-white">Items Ordered</h3>
             {tableBill.items.map((item, index) => (
               <div key={`${item.id}-${index}`} className="flex justify-between items-center py-2 border-b border-gray-800">
@@ -126,7 +128,7 @@ export const BillModal: React.FC<BillModalProps> = ({
               <span className="text-gray-400">Tax ({((tableBill.tax / tableBill.subtotal) * 100).toFixed(0)}%):</span>
               <span className="font-medium text-white">${tableBill.tax.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-lg font-bold border-t pt-2">
+            <div className="flex justify-between text-lg font-bold border-t border-gray-700 pt-2">
               <span className="text-white">Total:</span>
               <span className="text-yellow-400">${tableBill.total.toFixed(2)}</span>
             </div>
@@ -147,7 +149,8 @@ export const BillModal: React.FC<BillModalProps> = ({
           </div>
         </div>
 
-        <div className="p-4 border-t border-gray-800 bg-gray-800">
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-800 bg-gray-800/55 flex-shrink-0">
           <button
             onClick={onClose}
             className="w-full bg-gray-700 text-white py-3 rounded-xl font-semibold hover:bg-gray-600 transition-colors"

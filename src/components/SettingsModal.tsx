@@ -44,19 +44,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   };
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-      <div className="bg-white rounded-2xl p-6 m-4 max-w-sm w-full">
-        <div className="flex items-center justify-between mb-6">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-sm w-full max-h-[90vh] flex flex-col overflow-hidden shadow-xl animate-slide-up">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-xl font-bold text-gray-900">{t('settings')}</h2>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            aria-label="Close settings"
           >
             <X className="w-6 h-6 text-gray-700" />
           </button>
         </div>
 
-        <div className="space-y-6">
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div>
             <label className="flex items-center text-gray-700 font-medium mb-3">
               <Globe className="w-5 h-5 mr-2" />
