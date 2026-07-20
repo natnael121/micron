@@ -10,18 +10,6 @@
 
 const admin = require('firebase-admin');
 
-// Initialise Firebase Admin once
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL || process.env.VITE_FIREBASE_CLIENT_EMAIL,
-      privateKey: (process.env.FIREBASE_PRIVATE_KEY || process.env.VITE_FIREBASE_PRIVATE_KEY || '')
-        .replace(/\\n/g, '\n'),
-    }),
-  });
-}
-
 export default async function handler(req, res) {
   // CORS preflight
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -30,6 +18,39 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  // Initialise Firebase Admin inside handler to safely catch and return initialization errors
+  try {
+    if (!admin.apps.length) {
+      const projectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
+      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || process.env.VITE_FIREBASE_CLIENT_EMAIL;
+      let privateKey = process.env.FIREBASE_PRIVATE_KEY || process.env.VITE_FIREBASE_PRIVATE_KEY || '';
+
+      // Strip outer quotes if Vercel or local env config wrapped the string in quotes
+      if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+        privateKey = privateKey.slice(1, -1);
+      }
+      privateKey = privateKey.replace(/\\n/g, '\n');
+
+      if (!projectId || !clientEmail || !privateKey) {
+        throw new Error(`Missing credentials: projectId=${!!projectId}, clientEmail=${!!clientEmail}, privateKey=${!!privateKey}`);
+      }
+
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId,
+          clientEmail,
+          privateKey,
+        }),
+      });
+    }
+  } catch (initError) {
+    console.error('Firebase Admin SDK initialization failed:', initError);
+    return res.status(500).json({
+      error: 'Firebase Admin SDK initialization failed',
+      detail: initError.message,
+    });
   }
 
   if (req.method !== 'POST') {
