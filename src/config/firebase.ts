@@ -37,7 +37,14 @@ export { messaging };
  */
 export async function getFCMToken(): Promise<string | null> {
   const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
-  if (!messaging || !vapidKey) return null;
+  if (!messaging) {
+    console.warn('FCM messaging is not initialized or not supported in this browser.');
+    return null;
+  }
+  if (!vapidKey) {
+    console.error('FCM Error: VITE_FIREBASE_VAPID_KEY is missing in your .env file! Push tokens cannot be requested without a VAPID key.');
+    return null;
+  }
 
   try {
     const token = await getToken(messaging, {
@@ -46,7 +53,7 @@ export async function getFCMToken(): Promise<string | null> {
     });
     return token || null;
   } catch (err) {
-    console.warn('FCM getToken failed:', err);
+    console.error('FCM getToken failed:', err);
     return null;
   }
 }
