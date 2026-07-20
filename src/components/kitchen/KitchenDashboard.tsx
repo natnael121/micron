@@ -57,6 +57,11 @@ export const KitchenDashboard: React.FC = () => {
     }
   };
 
+  // Ref so the order subscription always sees the latest menu items without re-subscribing
+  const menuItemsRef = useRef<MenuItem[]>([]);
+  menuItemsRef.current = menuItems;
+
+  // Effect 1: load menu items once (or when restaurantId changes)
   useEffect(() => {
     if (!restaurantId) return;
 
@@ -73,15 +78,19 @@ export const KitchenDashboard: React.FC = () => {
     };
 
     loadData();
+  }, [restaurantId]);
 
-    // Subscribe to live orders
+  // Effect 2: subscribe to live orders (separate from menu item loading so it never re-loops)
+  useEffect(() => {
+    if (!restaurantId) return;
+
     const unsubscribe = firebaseService.listenToActiveOrders(restaurantId, (liveOrders) => {
       setOrders(liveOrders);
 
       // Filter active orders belonging to this station to compare for new alerts
       const activeStationOrders = liveOrders.filter(order => {
         const hasStationItems = order.items.some(item => {
-          const menuItem = menuItems.find(mi => mi.id === item.id);
+          const menuItem = menuItemsRef.current.find(mi => mi.id === item.id);
           return menuItem?.department === stationId;
         });
         const isCompleted = order.completedDepartments?.includes(stationId);
@@ -102,14 +111,13 @@ export const KitchenDashboard: React.FC = () => {
 
       activeTicketIdsRef.current = currentIds;
 
-      // Only play chime if data loading is already complete and a new ticket was added
-      if (hasNewTicket && !loading) {
+      if (hasNewTicket) {
         playNotificationSound();
       }
     });
 
     return () => unsubscribe();
-  }, [restaurantId, stationId, menuItems.length, loading]);
+  }, [restaurantId, stationId]);
 
   // Map order items to check if they belong to this station
   const getStationItems = (order: Order) => {
