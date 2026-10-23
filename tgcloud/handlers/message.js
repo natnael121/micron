@@ -34,7 +34,7 @@ export default async function (message) {
           '✅ <b>Online and operational</b>',
           `🤖 <b>Bot:</b> @tikur_menu_bot`,
           '🔗 <b>Platform:</b> Telegram Serverless (tgcloud)',
-          '📱 <b>Mini App:</b> https://app8620497591.tgcloud.ai',
+          `📱 <b>Mini App:</b> ${appUrl()}`,
         ].join('\n'),
         parse_mode: 'HTML',
       });

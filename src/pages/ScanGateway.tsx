@@ -17,12 +17,11 @@ export const ScanGateway: React.FC = () => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const botUsername = customBot || TelegramDeepLinkService.getBotUsername();
-  const miniAppName = TelegramDeepLinkService.getMiniAppName();
 
-  const tgDirectLink = TelegramDeepLinkService.generateMiniAppDirectLink(cafeId, tableNumber, botUsername, miniAppName);
-  const tgNativeScheme = TelegramDeepLinkService.generateNativeScheme(cafeId, tableNumber, botUsername, miniAppName);
-  const tgBotLink = TelegramDeepLinkService.generateDeepLink(cafeId, tableNumber, botUsername);
+  // IMPORTANT: Only use bot-start scheme (tg://resolve?domain=bot&start=...) — this works universally
+  // without needing /newapp registered in @BotFather. The appname scheme requires Mini App registration.
   const tgBotScheme = TelegramDeepLinkService.generateBotStartScheme(cafeId, tableNumber, botUsername);
+  const tgBotLink = TelegramDeepLinkService.generateDeepLink(cafeId, tableNumber, botUsername);
   const webFallbackUrl = `/menu/${cafeId}/table/${tableNumber}?web=true`;
 
   const goToWeb = () => {
@@ -32,17 +31,12 @@ export const ScanGateway: React.FC = () => {
 
   const openTelegram = () => {
     setStatus('redirecting_tg');
-    // Try native app scheme first, then direct link
-    window.location.href = tgNativeScheme;
-    setTimeout(() => {
-      window.location.href = tgBotScheme;
-    }, 400);
-    setTimeout(() => {
-      window.location.href = tgDirectLink;
-    }, 800);
+    // Try native tg:// scheme first (opens Telegram app directly)
+    window.location.href = tgBotScheme;
+    // Fallback to https://t.me/ link after short delay
     setTimeout(() => {
       window.location.href = tgBotLink;
-    }, 1200);
+    }, 600);
   };
 
   useEffect(() => {
@@ -59,14 +53,14 @@ export const ScanGateway: React.FC = () => {
     }
 
     // 2. If opened in a regular mobile browser from a QR scan:
-    // Try to launch Telegram Mini App automatically once
+    // Try to launch Telegram Bot automatically once using the universal bot-start scheme
     if (!hasTriggeredTg) {
       setHasTriggeredTg(true);
       setStatus('redirecting_tg');
 
-      // Attempt to invoke Telegram app
+      // Use tg:// native scheme — works universally without /newapp registration
       try {
-        window.location.href = tgNativeScheme;
+        window.location.href = tgBotScheme;
       } catch (err) {
         console.warn('Could not launch tg scheme directly:', err);
       }

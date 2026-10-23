@@ -27,3 +27,4 @@ dist-ssr
 
 # Telegram Serverless CLI state (contains auth token — never commit)
 .tgcloud/
+.vercel
