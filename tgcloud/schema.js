@@ -3,7 +3,7 @@
 // Orders, menus, and main app data remain in Firebase Firestore.
 // https://core.telegram.org/bots/serverless#the-database
 
-import { table, integer, text, sql } from 'sdk/db';
+import { table, integer, text, sql, uniqueIndex } from 'sdk/db';
 
 // Tracks active table sessions linked to a Telegram user
 export const sessions = table('sessions', {
@@ -15,7 +15,9 @@ export const sessions = table('sessions', {
   username:    text('username'),
   createdAt:   integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
   updatedAt:   integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
-});
+}, (t) => ({
+  uniqSession: uniqueIndex('sessions_unique_idx').on(t.telegramId, t.cafeId, t.tableId),
+}));
 
 // Stores pending waiter acknowledgments from inline button presses
 export const waiterCalls = table('waiter_calls', {

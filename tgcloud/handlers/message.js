@@ -3,7 +3,7 @@
 // https://core.telegram.org/bots/serverless#handlers
 
 import { api, db } from 'sdk';
-import { sql } from 'sdk/db';
+
 import { sessions } from '../schema.js';
 import { CONFIG } from '../lib/config.js';
 
@@ -82,23 +82,20 @@ async function handleStart(chatId, from, payload) {
       menuUrl   = `${appUrl()}/menu/${cafeId}/table/${tableId}`;
       tableInfo = ` – Table #${tableId}`;
 
-      // Save session in tgcloud DB
-      await db.insert(sessions)
-        .values({
-          telegramId: from.id,
-          cafeId,
-          tableId,
-          firstName:  from.first_name || '',
-          username:   from.username   || '',
-        })
-        .onConflictDoUpdate({
-          // Re-use existing row if same user+cafe+table
-          target:    [sessions.telegramId, sessions.cafeId, sessions.tableId],
-          set: {
-            updatedAt: sql`(unixepoch())`,
-          },
-        })
-        .run();
+      // Save session in tgcloud DB (best-effort — menu still works if this fails)
+      try {
+        await db.insert(sessions)
+          .values({
+            telegramId: from.id,
+            cafeId,
+            tableId,
+            firstName:  from.first_name || '',
+            username:   from.username   || '',
+          })
+          .run();
+      } catch (_dbErr) {
+        // Session already exists or DB not migrated yet — safe to ignore
+      }
     }
   }
 
