@@ -21,6 +21,8 @@ export const ScanGateway: React.FC = () => {
 
   const tgDirectLink = TelegramDeepLinkService.generateMiniAppDirectLink(cafeId, tableNumber, botUsername, miniAppName);
   const tgNativeScheme = TelegramDeepLinkService.generateNativeScheme(cafeId, tableNumber, botUsername, miniAppName);
+  const tgBotLink = TelegramDeepLinkService.generateDeepLink(cafeId, tableNumber, botUsername);
+  const tgBotScheme = TelegramDeepLinkService.generateBotStartScheme(cafeId, tableNumber, botUsername);
   const webFallbackUrl = `/menu/${cafeId}/table/${tableNumber}?web=true`;
 
   const goToWeb = () => {
@@ -33,9 +35,14 @@ export const ScanGateway: React.FC = () => {
     // Try native app scheme first, then direct link
     window.location.href = tgNativeScheme;
     setTimeout(() => {
-      // In case native scheme didn't respond
+      window.location.href = tgBotScheme;
+    }, 400);
+    setTimeout(() => {
       window.location.href = tgDirectLink;
-    }, 500);
+    }, 800);
+    setTimeout(() => {
+      window.location.href = tgBotLink;
+    }, 1200);
   };
 
   useEffect(() => {

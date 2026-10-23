@@ -18,6 +18,38 @@ import { SuperAdminLogin } from './components/admin/SuperAdminLogin';
 import { SuperAdminDashboard } from './components/admin/SuperAdminDashboard';
 import { MenuPage } from './pages/MenuPage';
 import { ScanGateway } from './pages/ScanGateway';
+import { TelegramDeepLinkService } from './utils/telegramDeepLink';
+
+// Smart Root Redirect component: handles Telegram Mini App auto-routing
+const RootRedirect: React.FC<{ user: any; getRedirectPath: () => string }> = ({ user, getRedirectPath }) => {
+  // 1. Check if opened inside Telegram or with Telegram start parameter
+  const startParam = TelegramDeepLinkService.getTelegramStartParam();
+  if (startParam) {
+    const parsed = TelegramDeepLinkService.parseStartParameter(startParam);
+    if (parsed) {
+      return <Navigate to={`/menu/${parsed.cafeId}/table/${parsed.tableId}`} replace />;
+    }
+  }
+
+  // 2. Check for existing customer session
+  const storedSession = TelegramDeepLinkService.getStoredSession();
+  if (storedSession?.cafeId && storedSession?.tableId) {
+    return <Navigate to={`/menu/${storedSession.cafeId}/table/${storedSession.tableId}`} replace />;
+  }
+
+  // 3. If inside Telegram WebApp without table param, open menu
+  if (TelegramDeepLinkService.isOpenedInTelegram()) {
+    return <Navigate to="/menu" replace />;
+  }
+
+  // 4. If logged-in staff/admin user, redirect to their panel
+  if (user) {
+    return <Navigate to={getRedirectPath()} replace />;
+  }
+
+  // 5. Otherwise, regular web visitor -> login
+  return <Navigate to="/login" replace />;
+};
 
 // Waiter Panel Components
 import { WaiterLayout } from './components/waiter/WaiterLayout';
@@ -100,7 +132,7 @@ function App() {
         </Route>
         
         {/* Default Redirects */}
-        <Route path="/" element={<Navigate to={user ? getRedirectPath() : "/login"} replace />} />
+        <Route path="/" element={<RootRedirect user={user} getRedirectPath={getRedirectPath} />} />
         <Route path="/table/:tableNumber" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>

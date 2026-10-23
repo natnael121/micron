@@ -859,14 +859,76 @@ export const Settings: React.FC = () => {
                           Your Menu URL
                         </label>
                         {(() => {
+                          const universalTgUrl = `https://t.me/tikur_menu_bot?start=${user?.id || ''}_1`;
+                          const directMiniAppUrl = `https://t.me/tikur_menu_bot/menu?startapp=${user?.id || ''}_1`;
                           const scanUrl = `${window.location.origin}/scan?cafe=${user?.id || ''}&table=1`;
-                          const tgBotUrl = `https://t.me/tikur_menu_bot/menu?startapp=${user?.id || ''}_1`;
                           
                           return (
                             <div className="space-y-4">
                               <div>
-                                <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                                  Smart QR / Web Gateway Link (Recommended)
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="block text-xs font-semibold text-sky-700 uppercase tracking-wider">
+                                    1. Universal Telegram Bot Link (Recommended - Works Immediately)
+                                  </span>
+                                  <span className="text-[11px] text-green-600 font-semibold bg-green-50 px-2 py-0.5 rounded-full">
+                                    Guaranteed to work
+                                  </span>
+                                </div>
+                                <div className="flex items-center space-x-3">
+                                  <input
+                                    type="text"
+                                    value={universalTgUrl}
+                                    readOnly
+                                    className="flex-1 px-4 py-2.5 border border-sky-200 rounded-lg bg-sky-50/30 text-gray-800 font-mono text-sm"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(universalTgUrl);
+                                      alert('Universal Telegram Bot link copied to clipboard!');
+                                    }}
+                                    className="bg-sky-600 text-white px-4 py-2.5 rounded-lg hover:bg-sky-700 transition-colors flex items-center space-x-2"
+                                  >
+                                    <ExternalLink className="w-4 h-4" />
+                                    <span>Copy</span>
+                                  </button>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Opens directly into @tikur_menu_bot chat with a one-tap button to launch the Mini App.
+                                </p>
+                              </div>
+
+                              <div>
+                                <span className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">
+                                  2. Direct Telegram Mini App Link (Full-Screen)
+                                </span>
+                                <div className="flex items-center space-x-3">
+                                  <input
+                                    type="text"
+                                    value={directMiniAppUrl}
+                                    readOnly
+                                    className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg bg-white text-gray-700 font-mono text-sm"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(directMiniAppUrl);
+                                      alert('Direct Mini App link copied to clipboard!');
+                                    }}
+                                    className="bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2"
+                                  >
+                                    <ExternalLink className="w-4 h-4" />
+                                    <span>Copy</span>
+                                  </button>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Directly opens full-screen inside Telegram. Requires short name "menu" set via /newapp in @BotFather.
+                                </p>
+                              </div>
+
+                              <div>
+                                <span className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">
+                                  3. Smart Scan Gateway Link (Web + Telegram Auto-Detect)
                                 </span>
                                 <div className="flex items-center space-x-3">
                                   <input
@@ -879,39 +941,17 @@ export const Settings: React.FC = () => {
                                     type="button"
                                     onClick={() => {
                                       navigator.clipboard.writeText(scanUrl);
-                                      alert('Scan URL copied to clipboard!');
+                                      alert('Smart Scan URL copied to clipboard!');
                                     }}
-                                    className="bg-green-600 text-white px-4 py-2.5 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                                    className="bg-emerald-600 text-white px-4 py-2.5 rounded-lg hover:bg-emerald-700 transition-colors flex items-center space-x-2"
                                   >
                                     <ExternalLink className="w-4 h-4" />
                                     <span>Copy</span>
                                   </button>
                                 </div>
-                              </div>
-
-                              <div>
-                                <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                                  Direct Telegram Mini App Link
-                                </span>
-                                <div className="flex items-center space-x-3">
-                                  <input
-                                    type="text"
-                                    value={tgBotUrl}
-                                    readOnly
-                                    className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg bg-white text-gray-700 font-mono text-sm"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(tgBotUrl);
-                                      alert('Telegram Bot link copied to clipboard!');
-                                    }}
-                                    className="bg-sky-600 text-white px-4 py-2.5 rounded-lg hover:bg-sky-700 transition-colors flex items-center space-x-2"
-                                  >
-                                    <ExternalLink className="w-4 h-4" />
-                                    <span>Copy</span>
-                                  </button>
-                                </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Detects device. Launches Telegram if installed; falls back to Web Menu automatically.
+                                </p>
                               </div>
                             </div>
                           );

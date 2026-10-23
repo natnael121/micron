@@ -47,11 +47,21 @@ export class TelegramDeepLinkService {
 
   /**
    * Generate a standard Telegram bot deep link (https://t.me/bot?start=cafeId_tableId)
+   * This is universal and works on ANY bot immediately without needing /newapp
    */
   static generateDeepLink(cafeId: string, tableId: string, botUsername?: string): string {
     const bot = (botUsername || this.BOT_USERNAME).replace(/^@/, '');
     const startParam = `${cafeId}_${tableId}`;
     return `https://t.me/${bot}?start=${startParam}`;
+  }
+
+  /**
+   * Generate a Telegram native scheme bot link (tg://resolve?domain=bot&start=cafeId_tableId)
+   */
+  static generateBotStartScheme(cafeId: string, tableId: string, botUsername?: string): string {
+    const bot = (botUsername || this.BOT_USERNAME).replace(/^@/, '');
+    const startParam = `${cafeId}_${tableId}`;
+    return `tg://resolve?domain=${bot}&start=${startParam}`;
   }
 
   /**
@@ -138,11 +148,37 @@ export class TelegramDeepLinkService {
   }
 
   /**
-   * Get start parameter passed to Telegram WebApp (via ?startapp=...)
+   * Get start parameter passed to Telegram WebApp (via ?startapp=... or WebApp initData)
    */
   static getTelegramStartParam(): string | null {
     if (typeof window === 'undefined') return null;
-    return (window as any).Telegram?.WebApp?.initDataUnsafe?.start_param || null;
+
+    // 1. From Telegram WebApp SDK
+    const tgParam = (window as any).Telegram?.WebApp?.initDataUnsafe?.start_param;
+    if (tgParam) return tgParam;
+
+    // 2. From URL search parameters (?tgWebAppStartParam=... or ?startapp=... or ?start=...)
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const urlParam = searchParams.get('tgWebAppStartParam') ||
+                       searchParams.get('startapp') ||
+                       searchParams.get('start');
+      if (urlParam) return urlParam;
+
+      // 3. From URL hash parameters (#tgWebAppData=... or hash query)
+      if (window.location.hash) {
+        const hashStr = window.location.hash.startsWith('#')
+          ? window.location.hash.substring(1)
+          : window.location.hash;
+        const hashParams = new URLSearchParams(hashStr);
+        const hashParam = hashParams.get('tgWebAppStartParam') || hashParams.get('start_param');
+        if (hashParam) return hashParam;
+      }
+    } catch {
+      // Fallback
+    }
+
+    return null;
   }
 
   /**
