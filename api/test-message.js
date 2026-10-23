@@ -1,11 +1,17 @@
 // Test endpoint to send a message to a specific chat
-const BOT_TOKEN = '1941939105:AAHJ9XhL9uRyzQ9uhi3F4rKAQIbQ9D7YRs8';
-const TELEGRAM_API_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
+// POST /api/test-message
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || process.env.VITE_TELEGRAM_BOT_TOKEN;
+  if (!BOT_TOKEN) {
+    return res.status(500).json({ error: 'TELEGRAM_BOT_TOKEN is not configured' });
+  }
+
+  const TELEGRAM_API_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
   try {
     const { chatId, message } = req.body;
@@ -29,7 +35,7 @@ export default async function handler(req, res) {
     const result = await response.json();
     
     if (result.ok) {
-      res.status(200).json({ success: true, message: 'Message sent successfully!' });
+      res.status(200).json({ success: true, message: 'Message sent successfully!', result });
     } else {
       res.status(400).json({ success: false, error: 'Failed to send message', result });
     }

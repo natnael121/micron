@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Navigate, useLocation } from 'react-router-dom';
-import { MenuItem, TableBill, ScheduledMenuItem, MenuSchedule } from '../types';
+import { TableBill, ScheduledMenuItem, MenuSchedule } from '../types';
 import { MenuCard } from '../components/MenuCard';
 import { MenuDetail } from '../components/MenuDetail';
 import { CartModal } from '../components/CartModal';
@@ -37,7 +37,6 @@ export const MenuPage: React.FC = () => {
   
   // Check if this is a business slug route (/:businessSlug/table/:tableNumber)
   if (pathSegments.length === 3 && pathSegments[1] === 'table') {
-    const businessSlug = pathSegments[0];
     resolvedTableNumber = pathSegments[2];
     // We'll need to resolve the business slug to userId later
   }
@@ -74,13 +73,28 @@ export const MenuPage: React.FC = () => {
   const [tableBill, setTableBill] = useState<TableBill | null>(null);
   const [isPayingBill, setIsPayingBill] = useState(false);
   const [analytics] = useState(() => new AnalyticsService(tableNumber || '1'));
-  const [businessInfo, setBusinessInfo] = useState<{ name: string; logo?: string } | null>(null);
+  const [businessInfo, setBusinessInfo] = useState<{
+    name: string;
+    logo?: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+    description?: string;
+    website?: string;
+    socialMedia?: any;
+    operatingHours?: any;
+    features?: string[];
+    specialMessage?: string;
+  } | null>(null);
   const [session, setSession] = useState<CafeTableSession | null>(null);
   const [cafeId, setCafeId] = useState<string | null>(null);
   const [botUsername, setBotUsername] = useState<string>('');
   const [businessSlugToUserId, setBusinessSlugToUserId] = useState<string | null>(null);
   const t = useTranslation(settings.language);
-  const { isEnabled: notificationsEnabled, requestPermission } = useCustomerNotifications();
+  const { isEnabled: notificationsEnabled, requestPermission } = useCustomerNotifications(
+    resolvedTableNumber || '1',
+    resolvedUserId || businessSlugToUserId || undefined
+  );
   const [toasts, setToasts] = useState<Array<{
     id: string;
     type: 'success' | 'error' | 'info' | 'warning';
@@ -178,11 +192,54 @@ export const MenuPage: React.FC = () => {
   };
 
   const initializeSession = () => {
-    // Check if opened via URL parameters (fallback)
+    // 1. If inside Telegram WebApp, initialize SDK properties
+    if (TelegramDeepLinkService.isOpenedInTelegram()) {
+      TelegramDeepLinkService.initTelegramWebApp();
+    }
+
+    // 2. Check if opened via URL parameters (fallback / query params)
     const urlParams = TelegramDeepLinkService.parseUrlParams(window.location.href);
+    let targetCafeId = urlParams?.cafeId || resolvedUserId || businessSlugToUserId;
+    let targetTableId = urlParams?.tableId || resolvedTableNumber;
+
+    // 3. If in Telegram WebApp and parameters missing from URL, check start_param
+    if ((!targetCafeId || !targetTableId) && TelegramDeepLinkService.isOpenedInTelegram()) {
+      const startParam = TelegramDeepLinkService.getTelegramStartParam();
+      if (startParam) {
+        const parsed = TelegramDeepLinkService.parseStartParameter(startParam);
+        if (parsed) {
+          targetCafeId = parsed.cafeId;
+          targetTableId = parsed.tableId;
+          if (!resolvedUserId) setBusinessSlugToUserId(parsed.cafeId);
+        }
+      }
+    }
+
+    // 4. If inside Telegram WebApp, auto-authenticate with Telegram user data
+    if (TelegramDeepLinkService.isOpenedInTelegram() && targetCafeId && targetTableId) {
+      const tgUser = TelegramDeepLinkService.getTelegramWebAppUser();
+      if (tgUser) {
+        const authenticatedSession = TelegramDeepLinkService.createSession(
+          targetCafeId,
+          targetTableId,
+          tgUser
+        );
+        setSession(authenticatedSession);
+        setCafeId(targetCafeId);
+        TelegramDeepLinkService.storeSession(authenticatedSession);
+        setShowTelegramLogin(false);
+        analytics.setCustomerInfo({
+          telegramId: tgUser.id.toString(),
+          telegramUsername: tgUser.username,
+          telegramPhoto: tgUser.photo_url,
+        });
+        return;
+      }
+    }
+
+    // Check if opened via URL parameters (fallback)
     if (urlParams) {
       setCafeId(urlParams.cafeId);
-      // Create guest session for fallback URL
       const guestSession = TelegramDeepLinkService.createSession(urlParams.cafeId, urlParams.tableId);
       setSession(guestSession);
       TelegramDeepLinkService.storeSession(guestSession);
@@ -197,11 +254,13 @@ export const MenuPage: React.FC = () => {
       return;
     }
 
-    // Check if opened in Telegram
+    // Check if opened in Telegram as guest
     const isInTelegram = TelegramDeepLinkService.isOpenedInTelegram();
-    if (isInTelegram && (resolvedUserId || businessSlugToUserId) && resolvedTableNumber) {
-      setShowTelegramLogin(true);
-      setCafeId(resolvedUserId || businessSlugToUserId); // Use userId as cafeId for backward compatibility
+    if (isInTelegram && targetCafeId && targetTableId) {
+      const guestSession = TelegramDeepLinkService.createSession(targetCafeId, targetTableId);
+      setSession(guestSession);
+      setCafeId(targetCafeId);
+      TelegramDeepLinkService.storeSession(guestSession);
     }
   };
 
@@ -256,7 +315,7 @@ export const MenuPage: React.FC = () => {
     try {
       const userDoc = await firebaseService.getUserProfile(userIdToUse);
       if (userDoc) {
-        setBotUsername(userDoc.settings?.telegramBotUsername || '');
+        setBotUsername((userDoc.settings as any)?.telegramBotUsername || userDoc.telegramChatId || '');
         setBusinessInfo({ 
           name: userDoc.businessName || 'Restaurant', 
           logo: userDoc.logo,
@@ -264,7 +323,7 @@ export const MenuPage: React.FC = () => {
           phone: userDoc.aboutUs?.phone || userDoc.phone,
           email: userDoc.aboutUs?.email || userDoc.email,
           socialMedia: userDoc.aboutUs?.socialMedia,
-          description: userDoc.aboutUs?.description || userDoc.description,
+          description: userDoc.aboutUs?.description,
           website: userDoc.aboutUs?.website,
           operatingHours: userDoc.aboutUs?.operatingHours,
           features: userDoc.aboutUs?.features,
@@ -316,7 +375,7 @@ export const MenuPage: React.FC = () => {
     if (!userIdToUse || !resolvedTableNumber) return;
     
     try {
-      const bill = await firebaseService.getTableBill(userIdToUse, resolvedTableNumber, cafeId);
+      const bill = await firebaseService.getTableBill(userIdToUse, resolvedTableNumber, cafeId || undefined);
       setTableBill(bill);
     } catch (error) {
       console.error('Error loading table bill:', error);
@@ -434,7 +493,7 @@ export const MenuPage: React.FC = () => {
           subtotal: tableBill.subtotal,
           tax: tableBill.tax,
           total: tableBill.total,
-          method: paymentData.method === 'bank_transfer' ? 'bank_transfer' : 'mobile_money',
+          method: (paymentData.method === 'bank_transfer' ? 'bank_transfer' : 'mobile_money') as 'bank_transfer' | 'mobile_money',
           screenshotUrl: paymentData.screenshotUrl,
           timestamp: new Date().toISOString(),
           status: 'pending' as const
@@ -492,7 +551,7 @@ export const MenuPage: React.FC = () => {
           subtotal: getTotalAmount(),
           tax: getTotalAmount() * 0.15,
           total: getTotalAmount() * 1.15,
-          method: paymentData.method === 'bank_transfer' ? 'bank_transfer' : 'mobile_money',
+          method: (paymentData.method === 'bank_transfer' ? 'bank_transfer' : 'mobile_money') as 'bank_transfer' | 'mobile_money',
           screenshotUrl: paymentData.screenshotUrl,
           timestamp: new Date().toISOString(),
           status: 'pending' as const,
@@ -541,7 +600,7 @@ export const MenuPage: React.FC = () => {
     analytics.trackWaiterCall();
     try {
       // Add waiter call to database
-      const waiterCallId = await firebaseService.addWaiterCall(actualUserId, resolvedTableNumber || '1');
+      await firebaseService.addWaiterCall(actualUserId, resolvedTableNumber || '1');
       
       // Send Telegram notification with proper error handling
       try {
@@ -801,7 +860,7 @@ export const MenuPage: React.FC = () => {
           tableBill={tableBill}
           tableNumber={resolvedTableNumber || '1'}
           businessName="Restaurant"
-          userId={resolvedUserId || businessSlugToUserId}
+          userId={resolvedUserId || businessSlugToUserId || undefined}
           onClose={() => setShowBill(false)}
           onPaymentOrder={() => {
             setIsPayingBill(true);
@@ -815,7 +874,7 @@ export const MenuPage: React.FC = () => {
         <SettingsModal
           settings={settings}
           tableNumber={resolvedTableNumber || '1'}
-          userId={resolvedUserId || businessSlugToUserId}
+          userId={resolvedUserId || businessSlugToUserId || undefined}
           onClose={() => setShowSettings(false)}
           onUpdateSettings={updateSettings}
         />

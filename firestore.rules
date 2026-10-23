@@ -210,6 +210,14 @@ service cloud.firestore {
       allow read: if isOwner(resource.data) || isSuperAdmin();
     }
 
+    // Push Notification Tokens:
+    // Customers can register or update their device tokens so the restaurant can push to them.
+    // Restaurant owners, staff, and Super Admin can read these tokens to send notifications.
+    match /pushTokens/{tokenId} {
+      allow create, update: if true;
+      allow read: if isOwner(resource.data) || isSuperAdmin() || isStaff(resource.data.userId) || isStaff(resource.data.userId);
+    }
+
     // Deny all other unmatched requests by default for security
     match /{document=**} {
       allow read, write: if false;

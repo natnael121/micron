@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { TelegramUser } from '../types';
+import { TelegramDeepLinkService } from '../utils/telegramDeepLink';
 
 interface TelegramLoginWidgetProps {
   botName: string;
@@ -45,7 +46,6 @@ export const TelegramLoginWidget: React.FC<TelegramLoginWidgetProps> = ({
     (window as any).onTelegramAuth = (user: TelegramUser) => {
       try {
         // Validate the auth data before proceeding
-        const { TelegramDeepLinkService } = require('../utils/telegramDeepLink');
         if (TelegramDeepLinkService.validateTelegramAuth(user)) {
           onAuth(user);
         } else {

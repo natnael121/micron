@@ -1,24 +1,42 @@
-// Enhanced Telegram webhook handler with POS integration
+// Enhanced Telegram webhook handler with POS & Mini App integration
 const admin = require('firebase-admin');
 
 // Initialize Firebase Admin if not already initialized
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
-  });
+const projectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
+const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || process.env.VITE_FIREBASE_CLIENT_EMAIL;
+const privateKey = (process.env.FIREBASE_PRIVATE_KEY || process.env.VITE_FIREBASE_PRIVATE_KEY)?.replace(/\\n/g, '\n');
+
+if (!admin.apps.length && projectId && clientEmail && privateKey) {
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId,
+        clientEmail,
+        privateKey,
+      }),
+    });
+  } catch (initErr) {
+    console.error('Firebase Admin init error:', initErr);
+  }
 }
 
-const db = admin.firestore();
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const db = admin.apps.length ? admin.firestore() : null;
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || process.env.VITE_TELEGRAM_BOT_TOKEN;
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
+const APP_URL = process.env.APP_URL || process.env.VITE_APP_URL || 'https://the-last-bot.vercel.app';
+const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Validate webhook secret if configured
+  if (WEBHOOK_SECRET) {
+    const headerSecret = req.headers['x-telegram-bot-api-secret-token'];
+    if (headerSecret !== WEBHOOK_SECRET) {
+      return res.status(401).json({ error: 'Unauthorized webhook' });
+    }
   }
 
   try {
@@ -81,11 +99,16 @@ async function handleMessage(message) {
   
   // Handle text commands
   if (text?.startsWith('/')) {
-    const command = text.split(' ')[0];
+    const parts = text.split(' ');
+    const command = parts[0];
+    const startPayload = parts.length > 1 ? parts.slice(1).join(' ') : null;
     
     switch (command) {
       case '/start':
-        await sendWelcomeMessage(chat.id);
+        await sendWelcomeMessage(chat.id, startPayload, from);
+        break;
+      case '/menu':
+        await sendMenuMessage(chat.id, from);
         break;
       case '/status':
         await sendStatusMessage(chat.id);
@@ -514,20 +537,56 @@ async function answerCallbackQuery(callbackQueryId, text = '') {
   }
 }
 
-async function sendWelcomeMessage(chatId) {
+async function sendWelcomeMessage(chatId, startPayload, from) {
+  let menuUrl = `${APP_URL}/menu`;
+  let tableInfo = '';
+
+  if (startPayload) {
+    const parts = startPayload.split('_');
+    if (parts.length >= 2) {
+      const cafeId = parts[0];
+      const tableId = parts.slice(1).join('_');
+      menuUrl = `${APP_URL}/menu/${cafeId}/table/${tableId}`;
+      tableInfo = ` (Table #${tableId})`;
+    } else if (parts.length === 1 && !isNaN(Number(parts[0]))) {
+      menuUrl = `${APP_URL}/menu?table=${parts[0]}`;
+      tableInfo = ` (Table #${parts[0]})`;
+    }
+  }
+
+  const name = from?.first_name || 'there';
   const message = `
-🤖 <b>Restaurant Bot</b>
+👋 <b>Welcome ${name}!</b>
 
-Welcome! This bot will notify you about:
-• 🍽️ New orders
-• 💳 Payment confirmations  
-• 📞 Waiter calls
-• 📊 Daily reports
-
-Use /help for more commands.
+Welcome to our smart restaurant! Tap the button below to open our interactive Mini App menu${tableInfo}, customize your dishes, and place your order directly.
   `.trim();
-  
-  await sendMessage(chatId, message);
+
+  await sendMessageWithButtons(chatId, message, [
+    [
+      {
+        text: `🍽️ Open Menu & Order${tableInfo}`,
+        web_app: { url: menuUrl }
+      }
+    ]
+  ]);
+}
+
+async function sendMenuMessage(chatId, from) {
+  const menuUrl = `${APP_URL}/menu`;
+  const message = `
+🍽️ <b>Restaurant Menu</b>
+
+Tap the button below to browse our fresh food & drinks:
+  `.trim();
+
+  await sendMessageWithButtons(chatId, message, [
+    [
+      {
+        text: '📖 Open Full Menu',
+        web_app: { url: menuUrl }
+      }
+    ]
+  ]);
 }
 
 async function sendStatusMessage(chatId) {

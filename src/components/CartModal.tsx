@@ -10,6 +10,7 @@ interface CartModalProps {
   onUpdateQuantity: (itemId: string, quantity: number) => void;
   onRemoveItem: (itemId: string) => void;
   onPlaceOrder: () => void;
+  onPaymentOrder?: () => void;
 }
 
 export const CartModal: React.FC<CartModalProps> = ({
@@ -20,6 +21,7 @@ export const CartModal: React.FC<CartModalProps> = ({
   onUpdateQuantity,
   onRemoveItem,
   onPlaceOrder,
+  onPaymentOrder,
 }) => {
   if (items.length === 0) {
     return (
@@ -104,6 +106,14 @@ export const CartModal: React.FC<CartModalProps> = ({
             >
               Place Order (Pay Later)
             </button>
+            {onPaymentOrder && (
+              <button
+                onClick={onPaymentOrder}
+                className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-500 transition-colors"
+              >
+                Pay Now
+              </button>
+            )}
           </div>
         </div>
       </div>

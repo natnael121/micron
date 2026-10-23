@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Receipt, CreditCard } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Receipt, CreditCard, Send } from 'lucide-react';
 import { TableBill } from '../types';
 import { telegramService } from '../services/telegram';
 import html2canvas from 'html2canvas';
@@ -13,8 +13,6 @@ interface BillModalProps {
   onPaymentOrder: () => void;
 }
 
-
-
 export const BillModal: React.FC<BillModalProps> = ({
   tableBill,
   tableNumber,
@@ -24,23 +22,26 @@ export const BillModal: React.FC<BillModalProps> = ({
   onPaymentOrder,
 }) => {
   const billRef = React.useRef<HTMLDivElement>(null);
+  const [isSending, setIsSending] = useState(false);
 
   const sendBillToTelegram = async () => {
-    if (!tableBill || !billRef.current) return;
+    if (!tableBill || !billRef.current || isSending) return;
 
     try {
+      setIsSending(true);
       // Capture the bill as an image
       const canvas = await html2canvas(billRef.current, {
-        backgroundColor: '#ffffff',
+        backgroundColor: '#111827',
         scale: 2,
         logging: false,
       });
       
       // Convert to blob
       canvas.toBlob(async (blob) => {
-        if (!blob) return;
-        
-        const file = new File([blob], `bill-table-${tableNumber}.png`, { type: 'image/png' });
+        if (!blob) {
+          setIsSending(false);
+          return;
+        }
         
         // Send to Telegram
         await telegramService.sendBillPhoto(
@@ -50,10 +51,12 @@ export const BillModal: React.FC<BillModalProps> = ({
           userId
         );
         
+        setIsSending(false);
         alert('Bill sent to Telegram successfully!');
       }, 'image/png');
     } catch (error) {
       console.error('Error sending bill to Telegram:', error);
+      setIsSending(false);
       alert('Failed to send bill to Telegram');
     }
   };
@@ -142,6 +145,14 @@ export const BillModal: React.FC<BillModalProps> = ({
             >
               <CreditCard className="w-5 h-5" />
               Pay Now
+            </button>
+            <button
+              onClick={sendBillToTelegram}
+              disabled={isSending}
+              className="w-full bg-blue-600/30 text-blue-300 border border-blue-500/40 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-600/40 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <Send className="w-4 h-4" />
+              {isSending ? 'Sending Bill...' : 'Send Bill to Telegram'}
             </button>
             <p className="text-xs text-gray-400 text-center">
               You'll be able to select your payment method in the next step

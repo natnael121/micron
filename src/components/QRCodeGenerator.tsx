@@ -44,7 +44,7 @@ export const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
   };
 
   const generateQRCode = async (tableNumber: number): Promise<string> => {
-    const url = `${window.location.origin}/menu/${userId}/table/${tableNumber}`;
+    const url = `${window.location.origin}/scan?cafe=${userId}&table=${tableNumber}`;
     try {
       const qrDataURL = await QRCode.toDataURL(url, {
         width: 300,
@@ -311,7 +311,7 @@ const downloadAllQRCodes = async (format: 'png' | 'pdf') => {
                       className="w-32 h-32 mx-auto mb-3 border rounded"
                     />
                     <p className="text-xs text-gray-500 mt-2 break-all">
-                      {`${window.location.origin}/menu/${userId}/table/${tableNumber}`}
+                      {`${window.location.origin}/scan?cafe=${userId}&table=${tableNumber}`}
                     </p>
                   </div>
                 ))}

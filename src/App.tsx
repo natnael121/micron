@@ -17,6 +17,7 @@ import { NotificationSettings } from './components/admin/NotificationSettings';
 import { SuperAdminLogin } from './components/admin/SuperAdminLogin';
 import { SuperAdminDashboard } from './components/admin/SuperAdminDashboard';
 import { MenuPage } from './pages/MenuPage';
+import { ScanGateway } from './pages/ScanGateway';
 
 // Waiter Panel Components
 import { WaiterLayout } from './components/waiter/WaiterLayout';
@@ -58,6 +59,8 @@ function App() {
         <Route path="/register" element={!user ? <RegisterForm /> : <Navigate to={getRedirectPath()} replace />} />
         
         {/* Customer Menu Routes */}
+        <Route path="/scan" element={<ScanGateway />} />
+        <Route path="/qr/:userId/:tableNumber" element={<ScanGateway />} />
         <Route path="/menu/:userId/table/:tableNumber" element={<MenuPage />} />
         <Route path="/:businessSlug/table/:tableNumber" element={<MenuPage />} />
         <Route path="/menu" element={<MenuPage />} />

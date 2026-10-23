@@ -1,11 +1,17 @@
-// Get webhook information
-const BOT_TOKEN = '1941939105:AAHJ9XhL9uRyzQ9uhi3F4rKAQIbQ9D7YRs8';
-const TELEGRAM_API_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
+// Get Telegram Webhook information
+// GET /api/webhook-info
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || process.env.VITE_TELEGRAM_BOT_TOKEN;
+  if (!BOT_TOKEN) {
+    return res.status(500).json({ error: 'TELEGRAM_BOT_TOKEN is not configured' });
+  }
+
+  const TELEGRAM_API_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
   try {
     const response = await fetch(`${TELEGRAM_API_URL}/getWebhookInfo`);

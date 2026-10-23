@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 
 .env
+
+# Telegram Serverless CLI state (contains auth token — never commit)
+.tgcloud/
