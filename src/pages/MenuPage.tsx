@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Navigate, useLocation } from 'react-router-dom';
+import { useParams, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { UtensilsCrossed, Send, Sparkles } from 'lucide-react';
 import { TableBill, ScheduledMenuItem, MenuSchedule } from '../types';
 import { MenuCard } from '../components/MenuCard';
 import { MenuDetail } from '../components/MenuDetail';
@@ -29,6 +30,7 @@ import { CustomerNotificationManager } from '../components/CustomerNotificationM
 export const MenuPage: React.FC = () => {
   const { userId, tableNumber } = useParams<{ userId: string; tableNumber: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   
   // Handle business slug routing
   const pathSegments = location.pathname.split('/').filter(Boolean);
@@ -40,6 +42,20 @@ export const MenuPage: React.FC = () => {
     resolvedTableNumber = pathSegments[2];
     // We'll need to resolve the business slug to userId later
   }
+
+  // If opened directly on mobile browser outside Telegram without web flag,
+  // route through Scan Gateway to automatically launch Telegram Mini App!
+  useEffect(() => {
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const urlParams = new URLSearchParams(location.search);
+    const hasWebFlag = urlParams.get('web') === 'true';
+    const isInTelegram = TelegramDeepLinkService.isOpenedInTelegram();
+    const effectiveUserId = resolvedUserId || businessSlugToUserId;
+
+    if (isMobile && !isInTelegram && !hasWebFlag && effectiveUserId && resolvedTableNumber) {
+      navigate(`/scan?cafe=${effectiveUserId}&table=${resolvedTableNumber}`, { replace: true });
+    }
+  }, [resolvedUserId, businessSlugToUserId, resolvedTableNumber, location.search, navigate]);
   
   const { theme } = useMenuTheme(userId);
   const { settings, updateSettings } = useSettings();
@@ -283,14 +299,14 @@ export const MenuPage: React.FC = () => {
       setLoading(true);
       const items = await firebaseService.getScheduledMenuItems(userIdToUse);
       setMenuItems(items);
-      setUserExists(items.length > 0);
+      setUserExists(true);
       
       // Find current active schedule
       const activeSchedule = items.find(item => item.currentSchedule)?.currentSchedule;
       setCurrentSchedule(activeSchedule || null);
     } catch (error) {
       console.error('Error loading menu items:', error);
-      setUserExists(false);
+      setUserExists(true);
     } finally {
       setLoading(false);
     }
@@ -671,7 +687,39 @@ export const MenuPage: React.FC = () => {
   };
 
   if (userExists === false) {
-    return <Navigate to="/login" replace />;
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4 text-white">
+        <div className="max-w-md w-full bg-gray-800/90 backdrop-blur border border-gray-700 rounded-3xl p-8 text-center shadow-2xl">
+          <div className="w-16 h-16 bg-amber-500/20 text-amber-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <UtensilsCrossed className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2">Menu Unavailable</h2>
+          <p className="text-gray-400 mb-6 text-sm">
+            We couldn't load the menu for Table #{resolvedTableNumber || '1'}. Please check your connection or ask your waiter for assistance.
+          </p>
+          <div className="space-y-3">
+            <button
+              onClick={() => {
+                const id = resolvedUserId || businessSlugToUserId;
+                if (id) {
+                  loadMenuItems(id);
+                  loadCategories(id);
+                }
+              }}
+              className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 font-semibold rounded-xl transition-colors cursor-pointer"
+            >
+              Retry Loading Menu
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="w-full py-2.5 px-4 bg-gray-700 hover:bg-gray-600 text-sm font-medium rounded-xl transition-colors cursor-pointer"
+            >
+              Back to Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {
@@ -706,6 +754,28 @@ export const MenuPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 pb-20">
+      {/* Telegram App Promotion Banner for Web Viewers */}
+      {!TelegramDeepLinkService.isOpenedInTelegram() && (
+        <div className="bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 text-white px-4 py-2.5 shadow-md flex items-center justify-between sticky top-0 z-40 border-b border-white/10">
+          <div className="flex items-center space-x-2.5 text-xs sm:text-sm font-medium">
+            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+              <Send className="w-3.5 h-3.5 text-white" />
+            </div>
+            <span>Open in Telegram for live order tracking</span>
+          </div>
+          <button
+            onClick={() => {
+              const effectiveUserId = resolvedUserId || businessSlugToUserId || cafeId || '';
+              const link = TelegramDeepLinkService.generateNativeScheme(effectiveUserId, resolvedTableNumber || '1', botUsername);
+              window.location.href = link;
+            }}
+            className="px-3 py-1 rounded-full bg-white text-blue-600 hover:bg-blue-50 font-semibold text-xs transition-colors shadow-sm cursor-pointer whitespace-nowrap"
+          >
+            Launch Bot
+          </button>
+        </div>
+      )}
+
       {/* Telegram Login Modal */}
       {showTelegramLogin && botUsername && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">

@@ -21,7 +21,7 @@ export const ScanGateway: React.FC = () => {
 
   const tgDirectLink = TelegramDeepLinkService.generateMiniAppDirectLink(cafeId, tableNumber, botUsername, miniAppName);
   const tgNativeScheme = TelegramDeepLinkService.generateNativeScheme(cafeId, tableNumber, botUsername, miniAppName);
-  const webFallbackUrl = `/menu/${cafeId}/table/${tableNumber}`;
+  const webFallbackUrl = `/menu/${cafeId}/table/${tableNumber}?web=true`;
 
   const goToWeb = () => {
     if (timerRef.current) clearInterval(timerRef.current);

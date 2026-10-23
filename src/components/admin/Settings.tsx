@@ -859,37 +859,65 @@ export const Settings: React.FC = () => {
                           Your Menu URL
                         </label>
                         {(() => {
-                          const businessSlug = user?.businessName?.toLowerCase()
-                            .replace(/[^a-z0-9\s-]/g, '')
-                            .replace(/\s+/g, '-')
-                            .replace(/-+/g, '-')
-                            .trim() || 'restaurant';
-                          const menuUrl = `${window.location.origin}/${businessSlug}/table/1`;
+                          const scanUrl = `${window.location.origin}/scan?cafe=${user?.id || ''}&table=1`;
+                          const tgBotUrl = `https://t.me/tikur_menu_bot/menu?startapp=${user?.id || ''}_1`;
                           
                           return (
-                            <div className="flex items-center space-x-3">
-                              <input
-                                type="text"
-                                value={menuUrl}
-                                readOnly
-                                className="flex-1 px-4 py-3 border border-gray-200 rounded-lg bg-white text-gray-700 font-mono text-sm"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(menuUrl);
-                                  alert('URL copied to clipboard!');
-                                }}
-                                className="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                                <span>Copy</span>
-                              </button>
+                            <div className="space-y-4">
+                              <div>
+                                <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                                  Smart QR / Web Gateway Link (Recommended)
+                                </span>
+                                <div className="flex items-center space-x-3">
+                                  <input
+                                    type="text"
+                                    value={scanUrl}
+                                    readOnly
+                                    className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg bg-white text-gray-700 font-mono text-sm"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(scanUrl);
+                                      alert('Scan URL copied to clipboard!');
+                                    }}
+                                    className="bg-green-600 text-white px-4 py-2.5 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                                  >
+                                    <ExternalLink className="w-4 h-4" />
+                                    <span>Copy</span>
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div>
+                                <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                                  Direct Telegram Mini App Link
+                                </span>
+                                <div className="flex items-center space-x-3">
+                                  <input
+                                    type="text"
+                                    value={tgBotUrl}
+                                    readOnly
+                                    className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg bg-white text-gray-700 font-mono text-sm"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(tgBotUrl);
+                                      alert('Telegram Bot link copied to clipboard!');
+                                    }}
+                                    className="bg-sky-600 text-white px-4 py-2.5 rounded-lg hover:bg-sky-700 transition-colors flex items-center space-x-2"
+                                  >
+                                    <ExternalLink className="w-4 h-4" />
+                                    <span>Copy</span>
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           );
                         })()}
                         <p className="text-sm text-gray-500 mt-3">
-                          Share this URL with customers. Change "table/1" to any table number.
+                          Share this URL with customers or generate QR codes. Change "table=1" to any table number.
                         </p>
                       </div>
                     </div>
